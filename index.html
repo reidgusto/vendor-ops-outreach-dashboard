@@ -125,10 +125,36 @@
     /* KPI cards */
     .kpi-row {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .kpi-row-2 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 16px;
       margin-bottom: 24px;
     }
+    .kpi-card.lift-pos { border-top-color: var(--kale); }
+    .kpi-card.lift-neg { border-top-color: var(--guava); }
+
+    /* Site comparison panel */
+    .compare-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .compare-table th {
+      background: var(--warm-bg);
+      color: var(--gray);
+      padding: 8px 16px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-align: left;
+    }
+    .compare-table th.site-col { text-align: center; font-size: 13px; color: var(--dark); text-transform: none; letter-spacing: 0; }
+    .compare-table td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--dark); }
+    .compare-table td.val { text-align: center; font-weight: bold; }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-winner { color: var(--kale); }
+    .compare-lower { color: var(--gray); }
 
     .kpi-card {
       background: var(--white);
@@ -385,6 +411,12 @@
         <div class="kpi-target">Target: &gt;57</div>
         <span class="kpi-pill pill-none" id="kpTNPS">No data yet</span>
       </div>
+      <div class="kpi-card" id="liftCard">
+        <div class="kpi-label">tNPS Lift</div>
+        <div class="kpi-value" id="kvLift">—</div>
+        <div class="kpi-target">Avg score change after outreach</div>
+        <span class="kpi-pill pill-none" id="kpLift">No data yet</span>
+      </div>
       <div class="kpi-card">
         <div class="kpi-label">Overall Team tNPS Trend</div>
         <div class="kpi-value" id="kvTeamTNPS">—</div>
@@ -396,6 +428,14 @@
         <div class="kpi-value" id="kvSent">—</div>
         <div class="kpi-target">% positive on both questions</div>
         <span class="kpi-pill pill-none" id="kpSent">No data yet</span>
+      </div>
+    </div>
+    <div class="kpi-row-2">
+      <div class="kpi-card">
+        <div class="kpi-label">Total ARR Touched</div>
+        <div class="kpi-value" id="kvTotalARR">—</div>
+        <div class="kpi-target">Sum ARR of all contacted customers</div>
+        <span class="kpi-pill pill-none" id="kpTotalARR">No data yet</span>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Avg ARR / Contacted Customer</div>
@@ -422,6 +462,12 @@
         <p class="sub">Total contacts completed per week</p>
         <canvas id="volChart"></canvas>
       </div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px" id="comparePanel">
+      <h3>TP vs TaskUs — Site Comparison</h3>
+      <p class="sub">Key metrics by site for the selected period</p>
+      <div id="compareTableWrap"></div>
     </div>
 
     <div class="card" style="margin-bottom:24px">
@@ -625,12 +671,19 @@
     document.getElementById('kvTNPS').textContent = avgT !== null ? avgT : '—';
     setPill('kpTNPS', avgT, avgT !== null ? (avgT >= TARGET ? 'On Target' : 'Below Target') : 'No data yet', avgT !== null ? avgT >= TARGET : null);
 
+    // tNPS Lift — avg (outreachTNPS - originalTNPS)
+    const liftData = done.filter(r => r.outreachTNPS !== null && r.outreachTNPS !== undefined && r.originalTNPS !== null && r.originalTNPS !== undefined);
+    const avgLift = liftData.length ? +(liftData.reduce((a,r)=>a+(r.outreachTNPS - r.originalTNPS),0)/liftData.length).toFixed(1) : null;
+    document.getElementById('kvLift').textContent = avgLift !== null ? (avgLift >= 0 ? '+' : '') + avgLift + ' pts' : '—';
+    const liftCard = document.getElementById('liftCard');
+    liftCard.className = 'kpi-card' + (avgLift !== null ? (avgLift > 0 ? ' lift-pos' : ' lift-neg') : '');
+    setPill('kpLift', avgLift, avgLift !== null ? (avgLift > 0 ? 'Improving' : 'No Change') : 'No data yet', avgLift !== null ? avgLift > 0 : null);
+
     // Overall team tNPS trend — avg original tNPS of all cases in period
     const allOrig = rows.filter(r => r.originalTNPS !== null && r.originalTNPS !== undefined).map(r => r.originalTNPS);
     const avgOrig = allOrig.length ? +(allOrig.reduce((a,b)=>a+b,0)/allOrig.length).toFixed(1) : null;
     document.getElementById('kvTeamTNPS').textContent = avgOrig !== null ? avgOrig : '—';
-    const teamNote = avgOrig !== null ? (avgOrig >= 7 ? 'Passive Range' : 'Detractor Range') : 'No data yet';
-    setPill('kpTeamTNPS', avgOrig, teamNote, avgOrig !== null ? avgOrig >= 7 : null);
+    setPill('kpTeamTNPS', avgOrig, avgOrig !== null ? (avgOrig >= 7 ? 'Passive Range' : 'Detractor Range') : 'No data yet', avgOrig !== null ? avgOrig >= 7 : null);
 
     // Verbal sentiment
     const withSent = done.filter(r => r.verbalQ1 && r.verbalQ2);
@@ -639,13 +692,17 @@
     document.getElementById('kvSent').textContent = pct !== null ? pct + '%' : '—';
     setPill('kpSent', pct, pct !== null ? (pct >= 70 ? 'Strong' : 'Needs Attention') : 'No data yet', pct !== null ? pct >= 70 : null);
 
-    // Avg ARR per contacted customer
+    // Total ARR Touched
     const withARR = done.filter(r => r.arr !== null && r.arr !== undefined);
-    const avgARR = withARR.length ? Math.round(withARR.reduce((a,b)=>a+b.arr,0)/withARR.length) : null;
-    document.getElementById('kvARR').textContent = avgARR !== null ? '$' + avgARR.toLocaleString() : '—';
+    const totalARR = withARR.reduce((s,r)=>s+r.arr,0);
+    const avgARR = withARR.length ? Math.round(totalARR / withARR.length) : null;
+    const fmtARR = v => v >= 1000 ? '$' + (v/1000).toFixed(1) + 'k' : '$' + v.toLocaleString();
+    document.getElementById('kvTotalARR').textContent = withARR.length ? fmtARR(totalARR) : '—';
+    setPill('kpTotalARR', withARR.length, withARR.length ? withARR.length + ' customers' : 'No data yet', withARR.length > 0 ? true : null);
+    document.getElementById('kvARR').textContent = avgARR !== null ? fmtARR(avgARR) : '—';
     setPill('kpARR', avgARR, avgARR !== null ? withARR.length + ' contacts' : 'No data yet', avgARR !== null ? true : null);
 
-    // Churn risk — % of completed outreaches where tNPS still ≤6 post-outreach
+    // Churn risk — % still ≤6 post-outreach
     const withPost = done.filter(r => r.outreachTNPS !== null && r.outreachTNPS !== undefined);
     const stillDet = withPost.filter(r => r.outreachTNPS <= 6).length;
     const churnPct = withPost.length ? Math.round(stillDet / withPost.length * 100) : null;
@@ -653,6 +710,7 @@
     setPill('kpChurn', churnPct, churnPct !== null ? (churnPct <= 20 ? 'Low Risk' : 'Monitor') : 'No data yet', churnPct !== null ? churnPct <= 20 : null);
 
     renderCharts(rows, done);
+    renderComparison(rows);
     renderTable(rows);
   }
 
@@ -746,6 +804,71 @@
     });
   }
 
+  function siteMetrics(rows, site) {
+    const sr = site === 'all' ? rows : rows.filter(r => r.site === site);
+    const done = sr.filter(r => r.outreachCompleted);
+    const scores = done.filter(r => r.outreachTNPS != null).map(r => r.outreachTNPS);
+    const avgTNPS = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
+    const liftPairs = done.filter(r => r.outreachTNPS != null && r.originalTNPS != null);
+    const avgLift = liftPairs.length ? +(liftPairs.reduce((a,r)=>a+(r.outreachTNPS-r.originalTNPS),0)/liftPairs.length).toFixed(1) : null;
+    const sent = done.filter(r => r.verbalQ1 && r.verbalQ2);
+    const sentPct = sent.length ? Math.round(sent.filter(r=>r.verbalQ1==='Yes'&&r.verbalQ2==='Yes').length/sent.length*100) : null;
+    const arrRows = done.filter(r => r.arr != null);
+    const totalARR = arrRows.reduce((s,r)=>s+r.arr,0);
+    const churnBase = done.filter(r => r.outreachTNPS != null);
+    const churnPct = churnBase.length ? Math.round(churnBase.filter(r=>r.outreachTNPS<=6).length/churnBase.length*100) : null;
+    return { cases: sr.length, done: done.length, avgTNPS, avgLift, sentPct, totalARR, churnPct };
+  }
+
+  function renderComparison(rows) {
+    const tp = siteMetrics(rows, 'TP');
+    const tu = siteMetrics(rows, 'TaskUs');
+    const hasSiteData = (tp.cases + tu.cases) > 0;
+    const panel = document.getElementById('comparePanel');
+
+    if (!hasSiteData) {
+      document.getElementById('compareTableWrap').innerHTML = '<div class="no-data" style="padding:20px"><div class="no-data-icon">📊</div>No site data available for this period.</div>';
+      return;
+    }
+
+    function winner(tpVal, tuVal, higherIsBetter = true) {
+      if (tpVal === null && tuVal === null) return ['—', '—'];
+      if (tpVal === null) return ['—', String(tuVal)];
+      if (tuVal === null) return [String(tpVal), '—'];
+      const tpWins = higherIsBetter ? tpVal >= tuVal : tpVal <= tuVal;
+      return [
+        `<span class="${tpWins ? 'compare-winner' : 'compare-lower'}">${tpVal}</span>`,
+        `<span class="${!tpWins ? 'compare-winner' : 'compare-lower'}">${tuVal}</span>`
+      ];
+    }
+
+    const fA = v => v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : '$'+v;
+    const [tpTNPS, tuTNPS] = winner(tp.avgTNPS, tu.avgTNPS);
+    const [tpLift, tuLift] = winner(tp.avgLift !== null ? tp.avgLift : null, tu.avgLift !== null ? tu.avgLift : null);
+    const [tpSent, tuSent] = winner(tp.sentPct !== null ? tp.sentPct+'%' : null, tu.sentPct !== null ? tu.sentPct+'%' : null, true);
+    const [tpChurn, tuChurn] = winner(tp.churnPct !== null ? tp.churnPct+'%' : null, tu.churnPct !== null ? tu.churnPct+'%' : null, false);
+
+    document.getElementById('compareTableWrap').innerHTML = `
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th class="site-col">TP</th>
+            <th class="site-col">TaskUs</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Cases Identified</td><td class="val">${tp.cases}</td><td class="val">${tu.cases}</td></tr>
+          <tr><td>Outreach Completed</td><td class="val">${tp.done}</td><td class="val">${tu.done}</td></tr>
+          <tr><td>Avg tNPS (Post-Outreach)</td><td class="val">${tpTNPS}</td><td class="val">${tuTNPS}</td></tr>
+          <tr><td>tNPS Lift</td><td class="val">${tp.avgLift !== null ? (tp.avgLift>=0?'+':'')+tp.avgLift+' pts' : '—'}</td><td class="val">${tu.avgLift !== null ? (tu.avgLift>=0?'+':'')+tu.avgLift+' pts' : '—'}</td></tr>
+          <tr><td>Verbal Sentiment</td><td class="val">${tpSent}</td><td class="val">${tuSent}</td></tr>
+          <tr><td>Total ARR Touched</td><td class="val">${tp.totalARR ? fA(tp.totalARR) : '—'}</td><td class="val">${tu.totalARR ? fA(tu.totalARR) : '—'}</td></tr>
+          <tr><td>Churn Risk</td><td class="val">${tpChurn}</td><td class="val">${tuChurn}</td></tr>
+        </tbody>
+      </table>`;
+  }
+
   function renderTable(rows) {
     const wrap = document.getElementById('tableWrap');
     if (!rows.length) {
@@ -757,8 +880,8 @@
       <table>
         <thead>
           <tr>
-            <th>Date</th><th>Case #</th><th>Agent</th>
-            <th>Original tNPS</th><th>Outreach tNPS</th><th>Verbal Sentiment</th><th>Status</th>
+            <th>Date</th><th>Case #</th><th>Agent</th><th>Site</th>
+            <th>Original tNPS</th><th>Outreach tNPS</th><th>Verbal Sentiment</th>
           </tr>
         </thead>
         <tbody>
@@ -767,6 +890,7 @@
               <td>${fmtDate(r.date)}</td>
               <td><span class="case-link" onclick="openCaseModal('${r.caseNumber}')">${r.caseNumber || '—'}</span></td>
               <td>${r.agentName || '—'}</td>
+              <td>${r.site || '—'}</td>
               <td>${r.originalTNPS !== null && r.originalTNPS !== undefined
                 ? `<span class="badge ${r.originalTNPS <= 6 ? 'b-det' : 'b-pas'}">${r.originalTNPS}</span>` : '—'}</td>
               <td>${r.outreachTNPS !== null && r.outreachTNPS !== undefined
@@ -776,9 +900,6 @@
                     ? '<span style="color:#0A8080;font-weight:bold">✓ Positive</span>'
                     : '<span style="color:#F45D48;font-weight:bold">✗ Mixed</span>')
                 : '—'}</td>
-              <td>${r.outreachCompleted
-                ? '<span class="b-comp">Completed</span>'
-                : '<span class="b-pend">Pending</span>'}</td>
             </tr>`).join('')}
         </tbody>
       </table>`;
@@ -801,7 +922,6 @@
       <div class="modal-field"><label>ARR</label><span>${r.arr !== null && r.arr !== undefined ? '$' + Number(r.arr).toLocaleString() : '—'}</span></div>
       <div class="modal-field"><label>Channel</label><span>${r.channel || '—'}</span></div>
       <div class="modal-field"><label>Outreach Date</label><span>${r.outreachDate ? fmtDate(r.outreachDate) : '—'}</span></div>
-      <div class="modal-field"><label>Status</label><span>${r.outreachCompleted ? 'Completed' : 'Pending'}</span></div>
       <div class="modal-field"><label>Q1 — Issue Resolved?</label><span>${r.verbalQ1 || '—'}</span></div>
       <div class="modal-field"><label>Q2 — More Confident?</label><span>${r.verbalQ2 || '—'}</span></div>
     `;
