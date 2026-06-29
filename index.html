@@ -560,6 +560,7 @@
     <div id="execView">
       <div class="exec-header">
         <div class="exec-header-left">
+          <button onclick="toggleExecView()" style="background:none;border:none;cursor:pointer;color:var(--kale);font-size:13px;font-weight:600;padding:0 0 8px 0;display:flex;align-items:center;gap:4px;">← Back to Dashboard</button>
           <h2>Executive Summary</h2>
           <p id="execSubtitle">Detractor &amp; Passive Outreach Program — Gusto Vendor Operations</p>
         </div>
@@ -703,6 +704,7 @@
 
     if (execMode) {
       btn.classList.add('active');
+      btn.textContent = '← Dashboard';
       periodRow.style.display = 'none';
       siteRow.style.display = 'none';
       document.querySelectorAll('.kpi-row, .kpi-row-2').forEach(e => e.style.display = 'none');
@@ -713,6 +715,7 @@
       renderExecSummary();
     } else {
       btn.classList.remove('active');
+      btn.textContent = 'Executive Summary';
       periodRow.style.display = '';
       siteRow.style.display = '';
       document.querySelectorAll('.kpi-row, .kpi-row-2').forEach(e => e.style.display = '');
