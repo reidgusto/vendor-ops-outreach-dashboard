@@ -98,8 +98,8 @@
     /* KPI cards */
     .kpi-row {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
       margin-bottom: 24px;
     }
 
@@ -119,7 +119,7 @@
     }
 
     .kpi-value {
-      font-size: 44px;
+      font-size: 36px;
       font-weight: bold;
       color: var(--dark);
       line-height: 1;
@@ -207,6 +207,35 @@
       border-top: 1px solid var(--border);
       margin-top: 10px;
     }
+
+    /* Case detail modal */
+    #caseModal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 8000; display: none;
+    }
+    #caseModal.open { display: flex; }
+    #caseModalBox {
+      background: var(--white); border-radius: 12px;
+      border-top: 4px solid var(--kale);
+      padding: 36px 40px; width: 520px; max-width: 95vw;
+      position: relative; max-height: 90vh; overflow-y: auto;
+    }
+    #caseModalBox h3 { font-size: 16px; color: var(--dark); margin-bottom: 4px; }
+    #caseModalBox .modal-sub { font-size: 12px; color: var(--gray); margin-bottom: 24px; }
+    .modal-close {
+      position: absolute; top: 16px; right: 20px;
+      font-size: 20px; cursor: pointer; color: var(--gray);
+      background: none; border: none; line-height: 1;
+    }
+    .modal-close:hover { color: var(--dark); }
+    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .modal-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); display: block; margin-bottom: 4px; }
+    .modal-field span { font-size: 14px; color: var(--dark); font-weight: bold; }
+    .modal-verbatim { background: var(--warm-bg); border-radius: 8px; padding: 14px 16px; font-size: 13px; color: var(--dark); line-height: 1.5; margin-bottom: 4px; }
+    .modal-verbatim-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); margin-bottom: 6px; }
+    .case-link { color: var(--kale); text-decoration: underline; cursor: pointer; font-weight: bold; }
+    .case-link:hover { color: #096868; }
 
     /* Password gate */
     #pwGate {
@@ -309,22 +338,34 @@
 
     <div class="kpi-row">
       <div class="kpi-card">
-        <div class="kpi-label">Outreach tNPS</div>
+        <div class="kpi-label">tNPS — Outreach Cases</div>
         <div class="kpi-value" id="kvTNPS">—</div>
         <div class="kpi-target">Target: &gt;57</div>
         <span class="kpi-pill pill-none" id="kpTNPS">No data yet</span>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Outreach Volume</div>
-        <div class="kpi-value" id="kvVol">—</div>
-        <div class="kpi-target">Target: 5 contacts / SME / week</div>
-        <span class="kpi-pill pill-none" id="kpVol">No data yet</span>
+        <div class="kpi-label">Overall Team tNPS Trend</div>
+        <div class="kpi-value" id="kvTeamTNPS">—</div>
+        <div class="kpi-target">Avg tNPS of all surveyed cases</div>
+        <span class="kpi-pill pill-none" id="kpTeamTNPS">No data yet</span>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Verbal Sentiment</div>
         <div class="kpi-value" id="kvSent">—</div>
         <div class="kpi-target">% positive on both questions</div>
         <span class="kpi-pill pill-none" id="kpSent">No data yet</span>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg ARR / Contacted Customer</div>
+        <div class="kpi-value" id="kvARR">—</div>
+        <div class="kpi-target">Avg ARR of completed outreaches</div>
+        <span class="kpi-pill pill-none" id="kpARR">No data yet</span>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Churn Risk</div>
+        <div class="kpi-value" id="kvChurn">—</div>
+        <div class="kpi-target">% still detractor post-outreach</div>
+        <span class="kpi-pill pill-none" id="kpChurn">No data yet</span>
       </div>
     </div>
 
@@ -347,6 +388,20 @@
       <div class="table-wrap" id="tableWrap"></div>
     </div>
 
+  </div>
+</div>
+
+<!-- Case detail modal -->
+<div id="caseModal" onclick="if(event.target===this)closeCaseModal()">
+  <div id="caseModalBox">
+    <button class="modal-close" onclick="closeCaseModal()">&times;</button>
+    <h3 id="modalTitle">Case Detail</h3>
+    <div class="modal-sub" id="modalSub"></div>
+    <div class="modal-grid" id="modalGrid"></div>
+    <div id="modalVerbatimWrap" style="display:none">
+      <div class="modal-verbatim-label">Customer Verbatim</div>
+      <div class="modal-verbatim" id="modalVerbatim"></div>
+    </div>
   </div>
 </div>
 
@@ -456,15 +511,18 @@
     const rows = filtered();
     const done = rows.filter(r => r.outreachCompleted);
 
-    // tNPS
-    const scores = done.filter(r => r.outreachTNPS !== null && r.outreachTNPS !== undefined).map(r => r.outreachTNPS);
-    const avgT = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
+    // tNPS — outreach cases
+    const outScores = done.filter(r => r.outreachTNPS !== null && r.outreachTNPS !== undefined).map(r => r.outreachTNPS);
+    const avgT = outScores.length ? Math.round(outScores.reduce((a,b)=>a+b,0)/outScores.length) : null;
     document.getElementById('kvTNPS').textContent = avgT !== null ? avgT : '—';
     setPill('kpTNPS', avgT, avgT !== null ? (avgT >= TARGET ? 'On Target' : 'Below Target') : 'No data yet', avgT !== null ? avgT >= TARGET : null);
 
-    // Volume
-    document.getElementById('kvVol').textContent = done.length || '—';
-    setPill('kpVol', done.length > 0 ? true : null, done.length > 0 ? 'Tracking' : 'No data yet', done.length > 0 ? true : null);
+    // Overall team tNPS trend — avg original tNPS of all cases in period
+    const allOrig = rows.filter(r => r.originalTNPS !== null && r.originalTNPS !== undefined).map(r => r.originalTNPS);
+    const avgOrig = allOrig.length ? +(allOrig.reduce((a,b)=>a+b,0)/allOrig.length).toFixed(1) : null;
+    document.getElementById('kvTeamTNPS').textContent = avgOrig !== null ? avgOrig : '—';
+    const teamNote = avgOrig !== null ? (avgOrig >= 7 ? 'Passive Range' : 'Detractor Range') : 'No data yet';
+    setPill('kpTeamTNPS', avgOrig, teamNote, avgOrig !== null ? avgOrig >= 7 : null);
 
     // Verbal sentiment
     const withSent = done.filter(r => r.verbalQ1 && r.verbalQ2);
@@ -472,6 +530,19 @@
     const pct = withSent.length ? Math.round(pos / withSent.length * 100) : null;
     document.getElementById('kvSent').textContent = pct !== null ? pct + '%' : '—';
     setPill('kpSent', pct, pct !== null ? (pct >= 70 ? 'Strong' : 'Needs Attention') : 'No data yet', pct !== null ? pct >= 70 : null);
+
+    // Avg ARR per contacted customer
+    const withARR = done.filter(r => r.arr !== null && r.arr !== undefined);
+    const avgARR = withARR.length ? Math.round(withARR.reduce((a,b)=>a+b.arr,0)/withARR.length) : null;
+    document.getElementById('kvARR').textContent = avgARR !== null ? '$' + avgARR.toLocaleString() : '—';
+    setPill('kpARR', avgARR, avgARR !== null ? withARR.length + ' contacts' : 'No data yet', avgARR !== null ? true : null);
+
+    // Churn risk — % of completed outreaches where tNPS still ≤6 post-outreach
+    const withPost = done.filter(r => r.outreachTNPS !== null && r.outreachTNPS !== undefined);
+    const stillDet = withPost.filter(r => r.outreachTNPS <= 6).length;
+    const churnPct = withPost.length ? Math.round(stillDet / withPost.length * 100) : null;
+    document.getElementById('kvChurn').textContent = churnPct !== null ? churnPct + '%' : '—';
+    setPill('kpChurn', churnPct, churnPct !== null ? (churnPct <= 20 ? 'Low Risk' : 'Monitor') : 'No data yet', churnPct !== null ? churnPct <= 20 : null);
 
     renderCharts(rows, done);
     renderTable(rows);
@@ -586,7 +657,7 @@
           ${sorted.map(r => `
             <tr>
               <td>${fmtDate(r.date)}</td>
-              <td>${r.caseNumber || '—'}</td>
+              <td><span class="case-link" onclick="openCaseModal('${r.caseNumber}')">${r.caseNumber || '—'}</span></td>
               <td>${r.agentName || '—'}</td>
               <td>${r.originalTNPS !== null && r.originalTNPS !== undefined
                 ? `<span class="badge ${r.originalTNPS <= 6 ? 'b-det' : 'b-pas'}">${r.originalTNPS}</span>` : '—'}</td>
@@ -604,6 +675,47 @@
         </tbody>
       </table>`;
   }
+
+  function openCaseModal(caseNum) {
+    const r = (data.outreachData || []).find(x => x.caseNumber === caseNum);
+    if (!r) return;
+    document.getElementById('modalTitle').textContent = 'Case ' + r.caseNumber;
+    document.getElementById('modalSub').textContent =
+      (r.accountName || 'Unknown Account') + ' — ' + fmtDate(r.date);
+
+    const sentText = r.verbalQ1 && r.verbalQ2
+      ? (r.verbalQ1 === 'Yes' && r.verbalQ2 === 'Yes' ? '✓ Positive' : '✗ Mixed')
+      : '—';
+
+    document.getElementById('modalGrid').innerHTML = `
+      <div class="modal-field"><label>Account</label><span>${r.accountName || '—'}</span></div>
+      <div class="modal-field"><label>Agent</label><span>${r.agentName || '—'}</span></div>
+      <div class="modal-field"><label>Original tNPS</label><span>${r.originalTNPS !== null && r.originalTNPS !== undefined ? r.originalTNPS : '—'}</span></div>
+      <div class="modal-field"><label>Outreach tNPS</label><span>${r.outreachTNPS !== null && r.outreachTNPS !== undefined ? r.outreachTNPS : '—'}</span></div>
+      <div class="modal-field"><label>ARR</label><span>${r.arr !== null && r.arr !== undefined ? '$' + Number(r.arr).toLocaleString() : '—'}</span></div>
+      <div class="modal-field"><label>Channel</label><span>${r.channel || '—'}</span></div>
+      <div class="modal-field"><label>Outreach Date</label><span>${r.outreachDate ? fmtDate(r.outreachDate) : '—'}</span></div>
+      <div class="modal-field"><label>Status</label><span>${r.outreachCompleted ? 'Completed' : 'Pending'}</span></div>
+      <div class="modal-field"><label>Q1 — Issue Resolved?</label><span>${r.verbalQ1 || '—'}</span></div>
+      <div class="modal-field"><label>Q2 — More Confident?</label><span>${r.verbalQ2 || '—'}</span></div>
+    `;
+
+    const vWrap = document.getElementById('modalVerbatimWrap');
+    if (r.verbatim) {
+      document.getElementById('modalVerbatim').textContent = r.verbatim;
+      vWrap.style.display = 'block';
+    } else {
+      vWrap.style.display = 'none';
+    }
+
+    document.getElementById('caseModal').classList.add('open');
+  }
+
+  function closeCaseModal() {
+    document.getElementById('caseModal').classList.remove('open');
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCaseModal(); });
 
   function fmtDate(d) {
     return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
