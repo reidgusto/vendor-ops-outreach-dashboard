@@ -578,7 +578,7 @@
       <table>
         <thead>
           <tr>
-            <th>Date</th><th>Account</th><th>Case #</th><th>Agent</th>
+            <th>Date</th><th>Case #</th><th>Agent</th>
             <th>Original tNPS</th><th>Outreach tNPS</th><th>Verbal Sentiment</th><th>Status</th>
           </tr>
         </thead>
@@ -586,7 +586,6 @@
           ${sorted.map(r => `
             <tr>
               <td>${fmtDate(r.date)}</td>
-              <td>${r.accountName || '—'}</td>
               <td>${r.caseNumber || '—'}</td>
               <td>${r.agentName || '—'}</td>
               <td>${r.originalTNPS !== null && r.originalTNPS !== undefined
