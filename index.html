@@ -207,9 +207,74 @@
       border-top: 1px solid var(--border);
       margin-top: 10px;
     }
+
+    /* Password gate */
+    #pwGate {
+      position: fixed;
+      inset: 0;
+      background: var(--warm-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    #pwBox {
+      background: var(--white);
+      border-radius: 12px;
+      border-top: 4px solid var(--kale);
+      padding: 48px 44px;
+      width: 380px;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    }
+    #pwBox h2 { font-size: 18px; color: var(--dark); margin-bottom: 6px; }
+    #pwBox p { font-size: 13px; color: var(--gray); margin-bottom: 28px; }
+    #pwInput {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--dark);
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 12px;
+    }
+    #pwInput:focus { border-color: var(--kale); }
+    #pwInput.error { border-color: var(--guava); }
+    #pwBtn {
+      width: 100%;
+      padding: 12px;
+      background: var(--kale);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #pwBtn:hover { background: #096868; }
+    #pwErr {
+      font-size: 12px;
+      color: var(--guava);
+      margin-top: 10px;
+      min-height: 16px;
+    }
   </style>
 </head>
 <body>
+
+<!-- Password gate -->
+<div id="pwGate">
+  <div id="pwBox">
+    <h2>Detractor &amp; Passive Outreach Program</h2>
+    <p>Gusto Vendor Operations &mdash; Internal Use Only</p>
+    <input id="pwInput" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkPw()" />
+    <button id="pwBtn" onclick="checkPw()">Access Dashboard</button>
+    <div id="pwErr"></div>
+  </div>
+</div>
 
 <div class="header">
   <div class="header-left">
@@ -290,6 +355,27 @@
 </div>
 
 <script>
+  // Password gate
+  (function() {
+    if (sessionStorage.getItem('vo_auth') === '1') {
+      document.getElementById('pwGate').style.display = 'none';
+    }
+  })();
+
+  function checkPw() {
+    const val = document.getElementById('pwInput').value;
+    if (val === '#Gowithgusto') {
+      sessionStorage.setItem('vo_auth', '1');
+      document.getElementById('pwGate').style.display = 'none';
+    } else {
+      const inp = document.getElementById('pwInput');
+      inp.classList.add('error');
+      document.getElementById('pwErr').textContent = 'Incorrect password. Please try again.';
+      inp.value = '';
+      setTimeout(() => inp.classList.remove('error'), 1500);
+    }
+  }
+
   const LAUNCH = new Date('2026-07-01T00:00:00');
   const TARGET = 57;
   let filter = 'daily';
