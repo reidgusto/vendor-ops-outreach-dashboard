@@ -792,7 +792,10 @@
       fmtDate(r.date) + (r.site ? ' — ' + r.site : '');
 
     document.getElementById('modalGrid').innerHTML = `
+      <div class="modal-field"><label>Original Case #</label><span>${r.caseNumber || '—'}</span></div>
+      <div class="modal-field"><label>Outreach Case #</label><span>${r.outreachCaseNumber || '—'}</span></div>
       <div class="modal-field"><label>Agent</label><span>${r.agentName || '—'}</span></div>
+      <div class="modal-field"><label>Site</label><span>${r.site || '—'}</span></div>
       <div class="modal-field"><label>Original tNPS</label><span>${r.originalTNPS !== null && r.originalTNPS !== undefined ? r.originalTNPS : '—'}</span></div>
       <div class="modal-field"><label>Outreach tNPS</label><span>${r.outreachTNPS !== null && r.outreachTNPS !== undefined ? r.outreachTNPS : '—'}</span></div>
       <div class="modal-field"><label>ARR</label><span>${r.arr !== null && r.arr !== undefined ? '$' + Number(r.arr).toLocaleString() : '—'}</span></div>
