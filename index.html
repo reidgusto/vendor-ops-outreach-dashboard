@@ -391,15 +391,15 @@
   function boot() {
     const now = new Date();
     const badge = document.getElementById('statusBadge');
+    const hasData = data.outreachData && data.outreachData.length > 0;
 
-    if (now < LAUNCH) {
+    if (now < LAUNCH && !hasData) {
       badge.textContent = 'Pre-Launch';
       badge.className = 'status-badge badge-prelunch';
       document.getElementById('preLaunchView').style.display = 'block';
       tick();
       setInterval(tick, 1000);
     } else {
-      const hasData = data.outreachData && data.outreachData.length > 0;
       badge.textContent = hasData ? '● Live' : 'Awaiting Data';
       badge.className = 'status-badge ' + (hasData ? 'badge-live' : 'badge-waiting');
       document.getElementById('dashboardView').style.display = 'block';
@@ -436,15 +436,18 @@
 
   function filtered() {
     if (!data || !data.outreachData) return [];
-    const now = new Date();
-    return data.outreachData.filter(r => {
+    const rows = data.outreachData;
+    // Use the latest date in the dataset as the reference point (handles preview/future data)
+    const dates = rows.map(r => new Date(r.date));
+    const latest = dates.length ? new Date(Math.max(...dates)) : new Date();
+    return rows.filter(r => {
       const d = new Date(r.date);
       if (filter === 'daily') {
-        const cut = new Date(now); cut.setDate(cut.getDate() - 1); return d >= cut;
+        const cut = new Date(latest); cut.setDate(cut.getDate() - 1); return d >= cut;
       } else if (filter === 'weekly') {
-        const cut = new Date(now); cut.setDate(cut.getDate() - 7); return d >= cut;
+        const cut = new Date(latest); cut.setDate(cut.getDate() - 7); return d >= cut;
       } else {
-        const cut = new Date(now); cut.setMonth(cut.getMonth() - 1); return d >= cut;
+        const cut = new Date(latest); cut.setMonth(cut.getMonth() - 1); return d >= cut;
       }
     });
   }
