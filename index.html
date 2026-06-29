@@ -156,6 +156,82 @@
     .compare-winner { color: var(--kale); }
     .compare-lower { color: var(--gray); }
 
+    /* Executive Summary */
+    .exec-tab-btn {
+      padding: 8px 22px;
+      border-radius: 20px;
+      border: 2px solid var(--guava);
+      background: var(--white);
+      color: var(--guava);
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .exec-tab-btn:hover { background: var(--guava-light); }
+    .exec-tab-btn.active { background: var(--guava); color: var(--white); }
+
+    #execView { display: none; }
+
+    .exec-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px;
+    }
+    .exec-header-left h2 { font-size: 18px; font-weight: bold; color: var(--dark); }
+    .exec-header-left p { font-size: 12px; color: var(--gray); margin-top: 3px; }
+
+    .status-banner {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 20px; border-radius: 10px; margin-bottom: 24px;
+      font-weight: bold; font-size: 14px;
+    }
+    .status-banner.on-track { background: var(--kale-20); color: var(--kale); border-left: 4px solid var(--kale); }
+    .status-banner.off-track { background: var(--guava-light); color: var(--guava); border-left: 4px solid var(--guava); }
+    .status-banner.no-data { background: #F5F5F5; color: var(--gray); border-left: 4px solid var(--border); }
+    .status-dot { font-size: 10px; }
+
+    .exec-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .exec-col-card {
+      background: var(--white); border-radius: 8px; padding: 24px;
+      border-top: 4px solid var(--kale);
+    }
+    .exec-col-card h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); margin-bottom: 16px; }
+    .exec-metric { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .exec-metric:last-child { border-bottom: none; }
+    .exec-metric-label { font-size: 13px; color: var(--dark); }
+    .exec-metric-value { font-size: 15px; font-weight: bold; color: var(--dark); }
+    .exec-metric-value.good { color: var(--kale); }
+    .exec-metric-value.warn { color: var(--guava); }
+
+    .exec-narrative {
+      background: var(--white); border-radius: 8px; padding: 28px 32px;
+      margin-bottom: 20px; line-height: 1.7; font-size: 14px; color: var(--dark);
+      border-left: 4px solid var(--kale);
+    }
+    .exec-narrative p { margin-bottom: 12px; }
+    .exec-narrative p:last-child { margin-bottom: 0; }
+
+    .exec-site-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .exec-site-card {
+      background: var(--white); border-radius: 8px; padding: 20px 24px;
+    }
+    .exec-site-card h4 { font-size: 13px; font-weight: bold; color: var(--dark); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--kale); display: inline-block; }
+    .exec-site-stat { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+    .exec-site-stat:last-child { border-bottom: none; }
+    .exec-site-stat span:last-child { font-weight: bold; }
+
+    .exec-milestone {
+      background: var(--white); border-radius: 8px; padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+    .exec-milestone h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); margin-bottom: 14px; }
+    .milestone-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 13px; }
+    .milestone-row:last-child { margin-bottom: 0; }
+    .milestone-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .ms-done { background: var(--kale); }
+    .ms-next { background: var(--guava); }
+    .ms-future { background: var(--border); }
+
     .kpi-card {
       background: var(--white);
       border-radius: 8px;
@@ -382,8 +458,12 @@
 
     <div class="top-row">
       <div class="filter-bar">
+        <!-- View toggle -->
+        <div class="filter-row" style="margin-bottom:4px">
+          <button class="exec-tab-btn" id="execTabBtn" onclick="toggleExecView()">Executive Summary</button>
+        </div>
         <!-- Time filter -->
-        <div class="filter-row">
+        <div class="filter-row" id="periodFilterRow">
           <span class="filter-label">Period</span>
           <button class="filter-tab active" id="tab-weekly" onclick="setFilter('weekly',this)">Last 7 Days</button>
           <button class="filter-tab" id="tab-monthly" onclick="setFilter('monthly',this)">Last 30 Days</button>
@@ -394,7 +474,7 @@
           </select>
         </div>
         <!-- Site filter -->
-        <div class="filter-row">
+        <div class="filter-row" id="siteFilterRow">
           <span class="filter-label">Site</span>
           <button class="site-tab active" id="site-all" onclick="setSite('all',this)">All Sites</button>
           <button class="site-tab" id="site-tp" onclick="setSite('TP',this)">TP</button>
@@ -474,6 +554,45 @@
       <h3>Recent Outreach Activity</h3>
       <p class="sub" style="margin-bottom:16px">Most recent contacts across the program</p>
       <div class="table-wrap" id="tableWrap"></div>
+    </div>
+
+    <!-- Executive Summary View -->
+    <div id="execView">
+      <div class="exec-header">
+        <div class="exec-header-left">
+          <h2>Executive Summary</h2>
+          <p id="execSubtitle">Detractor &amp; Passive Outreach Program — Gusto Vendor Operations</p>
+        </div>
+        <div class="last-updated" id="execLastUpdated"></div>
+      </div>
+      <div id="execStatusBanner" class="status-banner no-data">
+        <span class="status-dot">●</span><span id="execStatusText">Awaiting data</span>
+      </div>
+      <div id="execNarrative" class="exec-narrative"></div>
+      <div class="exec-cols">
+        <div class="exec-col-card">
+          <h4>This Week</h4>
+          <div id="execWeekMetrics"></div>
+        </div>
+        <div class="exec-col-card">
+          <h4>Month to Date</h4>
+          <div id="execMTDMetrics"></div>
+        </div>
+      </div>
+      <div class="exec-site-row">
+        <div class="exec-site-card">
+          <h4>TP — This Week</h4>
+          <div id="execTPStats"></div>
+        </div>
+        <div class="exec-site-card">
+          <h4>TaskUs — This Week</h4>
+          <div id="execTUStats"></div>
+        </div>
+      </div>
+      <div class="exec-milestone">
+        <h4>Program Timeline</h4>
+        <div id="execMilestones"></div>
+      </div>
     </div>
 
   </div>
@@ -572,6 +691,193 @@
     return `<div class="countdown-unit"><span class="num">${n}</span><span class="lbl">${l}</span></div>`;
   }
   function pad(n) { return String(n).padStart(2, '0'); }
+
+  let execMode = false;
+
+  function toggleExecView() {
+    execMode = !execMode;
+    const btn = document.getElementById('execTabBtn');
+    const periodRow = document.getElementById('periodFilterRow');
+    const siteRow = document.getElementById('siteFilterRow');
+    const kpiBlocks = document.querySelectorAll('.kpi-row, .kpi-row-2, .charts-row, #comparePanel, .card:not(#execView .exec-col-card):not(#execView .exec-site-card):not(#execView .exec-milestone)');
+
+    if (execMode) {
+      btn.classList.add('active');
+      periodRow.style.display = 'none';
+      siteRow.style.display = 'none';
+      document.querySelectorAll('.kpi-row, .kpi-row-2').forEach(e => e.style.display = 'none');
+      document.querySelector('.charts-row').style.display = 'none';
+      document.getElementById('comparePanel').style.display = 'none';
+      document.querySelectorAll('#dashboardView > .card').forEach(e => e.style.display = 'none');
+      document.getElementById('execView').style.display = 'block';
+      renderExecSummary();
+    } else {
+      btn.classList.remove('active');
+      periodRow.style.display = '';
+      siteRow.style.display = '';
+      document.querySelectorAll('.kpi-row, .kpi-row-2').forEach(e => e.style.display = '');
+      document.querySelector('.charts-row').style.display = '';
+      document.getElementById('comparePanel').style.display = '';
+      document.querySelectorAll('#dashboardView > .card').forEach(e => e.style.display = '');
+      document.getElementById('execView').style.display = 'none';
+    }
+  }
+
+  function calcMetrics(rows) {
+    const done = rows.filter(r => r.outreachCompleted);
+    const outScores = done.filter(r => r.outreachTNPS != null).map(r => r.outreachTNPS);
+    const avgTNPS = outScores.length ? +(outScores.reduce((a,b)=>a+b,0)/outScores.length).toFixed(1) : null;
+    const liftPairs = done.filter(r => r.outreachTNPS != null && r.originalTNPS != null);
+    const avgLift = liftPairs.length ? +(liftPairs.reduce((a,r)=>a+(r.outreachTNPS-r.originalTNPS),0)/liftPairs.length).toFixed(1) : null;
+    const sentRows = done.filter(r => r.verbalQ1 && r.verbalQ2);
+    const sentPct = sentRows.length ? Math.round(sentRows.filter(r=>r.verbalQ1==='Yes'&&r.verbalQ2==='Yes').length/sentRows.length*100) : null;
+    const arrRows = done.filter(r => r.arr != null);
+    const totalARR = arrRows.reduce((s,r)=>s+r.arr,0);
+    const churnBase = done.filter(r => r.outreachTNPS != null);
+    const churnPct = churnBase.length ? Math.round(churnBase.filter(r=>r.outreachTNPS<=6).length/churnBase.length*100) : null;
+    return { total: rows.length, done: done.length, avgTNPS, avgLift, sentPct, totalARR, churnPct };
+  }
+
+  function renderExecSummary() {
+    if (!data || !data.outreachData || !data.outreachData.length) {
+      document.getElementById('execNarrative').innerHTML = '<p>No outreach data available yet. The program launched July 1, 2026 — check back after the first daily update runs.</p>';
+      return;
+    }
+
+    const allRows = data.outreachData;
+    const dates = allRows.map(r => new Date(r.date));
+    const latest = new Date(Math.max(...dates));
+
+    // Week = last 7 days from latest date
+    const weekCut = new Date(latest); weekCut.setDate(latest.getDate() - 7);
+    const weekRows = allRows.filter(r => new Date(r.date) >= weekCut);
+
+    // MTD = last 30 days from latest date
+    const mtdCut = new Date(latest); mtdCut.setMonth(latest.getMonth() - 1);
+    const mtdRows = allRows.filter(r => new Date(r.date) >= mtdCut);
+
+    const wm = calcMetrics(weekRows);
+    const mm = calcMetrics(mtdRows);
+    const tp = calcMetrics(weekRows.filter(r => r.site === 'TP'));
+    const tu = calcMetrics(weekRows.filter(r => r.site === 'TaskUs'));
+
+    // Format helpers
+    const fmtA = v => v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : '$'+v;
+    const fmtLift = v => v != null ? (v >= 0 ? '+' : '')+v+' pts' : '—';
+    const fmt = v => v != null ? v : '—';
+
+    // Status banner
+    const onTrack = wm.avgTNPS != null && wm.avgTNPS >= TARGET;
+    const banner = document.getElementById('execStatusBanner');
+    const statusText = document.getElementById('execStatusText');
+    if (wm.done === 0) {
+      banner.className = 'status-banner no-data';
+      statusText.textContent = 'Awaiting outreach data for this period';
+    } else if (onTrack) {
+      banner.className = 'status-banner on-track';
+      statusText.textContent = '● Program On Track — tNPS target of 57 is being met';
+    } else {
+      banner.className = 'status-banner off-track';
+      statusText.textContent = '⚠ Needs Attention — tNPS below target of 57';
+    }
+
+    // Last updated
+    if (data.lastUpdated) {
+      document.getElementById('execLastUpdated').textContent =
+        'Last updated: ' + new Date(data.lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    // Subtitle with current week label
+    const weekRows2 = allRows.filter(r => r.week);
+    const latestWeek = weekRows2.length ? weekRows2.sort((a,b)=>b.date.localeCompare(a.date))[0].week : '';
+    if (latestWeek) document.getElementById('execSubtitle').textContent = 'Week of ' + latestWeek + ' · Gusto Vendor Operations';
+
+    // Auto-generated narrative
+    const trendDir = wm.avgLift != null ? (wm.avgLift > 0 ? 'improved' : wm.avgLift === 0 ? 'held steady' : 'declined') : null;
+    const sentWord = wm.sentPct != null ? (wm.sentPct >= 80 ? 'strong' : wm.sentPct >= 60 ? 'positive' : 'mixed') : null;
+    const churnWord = wm.churnPct != null ? (wm.churnPct <= 15 ? 'low' : wm.churnPct <= 30 ? 'moderate' : 'elevated') : null;
+
+    let narrative = '';
+    if (wm.done > 0) {
+      narrative += `<p>This week, <strong>${wm.done} customer${wm.done !== 1 ? 's' : ''}</strong> were contacted across the program`;
+      if (tp.done && tu.done) narrative += ` (${tp.done} via TP, ${tu.done} via TaskUs)`;
+      narrative += `. The average post-outreach tNPS was <strong>${fmt(wm.avgTNPS)}</strong> — `;
+      narrative += wm.avgTNPS >= TARGET ? `above the program target of ${TARGET}.` : `below the program target of ${TARGET}, requiring attention.`;
+      narrative += `</p>`;
+
+      if (wm.avgLift != null) narrative += `<p>Customer scores <strong>${trendDir}</strong> by an average of <strong>${fmtLift(wm.avgLift)}</strong> following outreach, indicating that proactive contact is ${wm.avgLift > 0 ? 'positively impacting customer perception.' : 'not yet moving scores — review call quality and case selection.'}</p>`;
+
+      if (wm.sentPct != null) narrative += `<p>Verbal sentiment was <strong>${sentWord}</strong> this week, with <strong>${wm.sentPct}%</strong> of customers confirming their issue was resolved and that they feel more confident using Gusto.</p>`;
+
+      if (wm.churnPct != null) narrative += `<p>Churn risk is <strong>${churnWord}</strong> at <strong>${wm.churnPct}%</strong> of contacted customers remaining in the detractor range post-outreach.${wm.churnPct > 20 ? ' These cases warrant follow-up review.' : ''}</p>`;
+
+      if (wm.totalARR) narrative += `<p>Total ARR touched this week: <strong>${fmtA(wm.totalARR)}</strong>.${mm.totalARR ? ' Month to date: <strong>' + fmtA(mm.totalARR) + '</strong>.' : ''}</p>`;
+    } else {
+      narrative += `<p>No outreach contacts have been recorded for this period yet. Check back once the daily data pull has run.</p>`;
+    }
+    document.getElementById('execNarrative').innerHTML = narrative;
+
+    // Week metrics
+    document.getElementById('execWeekMetrics').innerHTML = metricRows([
+      ['Customers Contacted', fmt(wm.done), wm.done > 0],
+      ['Avg tNPS (Post-Outreach)', fmt(wm.avgTNPS), wm.avgTNPS >= TARGET],
+      ['tNPS Lift', fmtLift(wm.avgLift), wm.avgLift > 0],
+      ['Verbal Sentiment', wm.sentPct != null ? wm.sentPct+'%' : '—', wm.sentPct >= 70],
+      ['Total ARR Touched', wm.totalARR ? fmtA(wm.totalARR) : '—', wm.totalARR > 0],
+      ['Churn Risk', wm.churnPct != null ? wm.churnPct+'%' : '—', wm.churnPct <= 20],
+    ]);
+
+    // MTD metrics
+    document.getElementById('execMTDMetrics').innerHTML = metricRows([
+      ['Customers Contacted', fmt(mm.done), mm.done > 0],
+      ['Avg tNPS (Post-Outreach)', fmt(mm.avgTNPS), mm.avgTNPS >= TARGET],
+      ['tNPS Lift', fmtLift(mm.avgLift), mm.avgLift > 0],
+      ['Verbal Sentiment', mm.sentPct != null ? mm.sentPct+'%' : '—', mm.sentPct >= 70],
+      ['Total ARR Touched', mm.totalARR ? fmtA(mm.totalARR) : '—', mm.totalARR > 0],
+      ['Churn Risk', mm.churnPct != null ? mm.churnPct+'%' : '—', mm.churnPct <= 20],
+    ]);
+
+    // Site stats
+    document.getElementById('execTPStats').innerHTML = siteStatRows(tp);
+    document.getElementById('execTUStats').innerHTML = siteStatRows(tu);
+
+    // Milestones
+    const today = new Date();
+    const launch  = new Date('2026-07-01');
+    const review1 = new Date('2026-08-01');
+    const review2 = new Date('2026-09-01');
+    const daysDiff = (a, b) => Math.ceil((b - a) / 86400000);
+
+    function msRow(dotClass, label, detail) {
+      return `<div class="milestone-row"><div class="milestone-dot ${dotClass}"></div><div><strong>${label}</strong> — <span style="color:var(--gray)">${detail}</span></div></div>`;
+    }
+    let ms = '';
+    ms += msRow(today >= launch ? 'ms-done' : 'ms-next', 'Program Launch', today >= launch ? 'July 1, 2026 — Complete' : 'July 1, 2026 — ' + daysDiff(today, launch) + ' days away');
+    ms += msRow(today >= review1 ? 'ms-done' : (today >= launch ? 'ms-next' : 'ms-future'), 'First Review', today >= review1 ? 'August 1, 2026 — Complete' : 'August 1, 2026' + (today >= launch ? ' — ' + daysDiff(today, review1) + ' days away' : ''));
+    ms += msRow(today >= review2 ? 'ms-done' : 'ms-future', 'Full Assessment', today >= review2 ? 'September 1, 2026 — Complete' : 'September 1, 2026' + (today >= review1 ? ' — ' + daysDiff(today, review2) + ' days away' : ''));
+    document.getElementById('execMilestones').innerHTML = ms;
+  }
+
+  function metricRows(pairs) {
+    return pairs.map(([label, val, good]) =>
+      `<div class="exec-metric">
+        <span class="exec-metric-label">${label}</span>
+        <span class="exec-metric-value ${val === '—' ? '' : good ? 'good' : 'warn'}">${val}</span>
+      </div>`
+    ).join('');
+  }
+
+  function siteStatRows(m) {
+    const fA = v => v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : '$'+v;
+    return [
+      ['Cases Identified', m.total || '—'],
+      ['Outreach Completed', m.done || '—'],
+      ['Avg tNPS', m.avgTNPS != null ? m.avgTNPS : '—'],
+      ['tNPS Lift', m.avgLift != null ? (m.avgLift>=0?'+':'')+m.avgLift+' pts' : '—'],
+      ['Verbal Sentiment', m.sentPct != null ? m.sentPct+'%' : '—'],
+      ['ARR Touched', m.totalARR ? fA(m.totalARR) : '—'],
+    ].map(([l,v]) => `<div class="exec-site-stat"><span>${l}</span><span>${v}</span></div>`).join('');
+  }
 
   function setFilter(f, el) {
     filter = f;
