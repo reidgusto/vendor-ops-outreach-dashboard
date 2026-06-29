@@ -458,8 +458,8 @@
         <canvas id="tNPSChart"></canvas>
       </div>
       <div class="card">
-        <h3>Weekly Outreach Volume</h3>
-        <p class="sub">Total contacts completed per week</p>
+        <h3>Weekly Outreach Volume by Site</h3>
+        <p class="sub">Contacts completed per week — TP vs TaskUs</p>
         <canvas id="volChart"></canvas>
       </div>
     </div>
@@ -721,14 +721,16 @@
   }
 
   function renderCharts(rows, done) {
-    // Build weekly buckets from all data (not just filtered) for trend
+    // Build weekly buckets from all completed outreach data for trend
     const allDone = (data.outreachData || []).filter(r => r.outreachCompleted);
     const weekMap = {};
     allDone.forEach(r => {
       const w = r.week || getWeekLabel(r.date);
-      if (!weekMap[w]) weekMap[w] = { scores: [], count: 0 };
+      if (!weekMap[w]) weekMap[w] = { scores: [], tp: 0, tu: 0, other: 0 };
       if (r.outreachTNPS !== null && r.outreachTNPS !== undefined) weekMap[w].scores.push(r.outreachTNPS);
-      weekMap[w].count++;
+      if (r.site === 'TP') weekMap[w].tp++;
+      else if (r.site === 'TaskUs') weekMap[w].tu++;
+      else weekMap[w].other++;
     });
 
     const weeks = Object.keys(weekMap).sort().slice(-8);
@@ -736,7 +738,6 @@
       const s = weekMap[w].scores;
       return s.length ? Math.round(s.reduce((a,b)=>a+b,0)/s.length) : null;
     });
-    const volData = weeks.map(w => weekMap[w].count);
 
     // tNPS chart
     const ctx1 = document.getElementById('tNPSChart').getContext('2d');
@@ -778,28 +779,35 @@
       }
     });
 
-    // Volume chart
+    // Volume by site — stacked bar
     const ctx2 = document.getElementById('volChart').getContext('2d');
     if (chartVol) chartVol.destroy();
     chartVol = new Chart(ctx2, {
       type: 'bar',
       data: {
         labels: weeks.length ? weeks : ['—'],
-        datasets: [{
-          label: 'Contacts',
-          data: volData.length ? volData : [0],
-          backgroundColor: '#0A8080',
-          borderRadius: 5,
-          hoverBackgroundColor: '#6CB3B3'
-        }]
+        datasets: [
+          {
+            label: 'TP',
+            data: weeks.map(w => weekMap[w].tp),
+            backgroundColor: '#0A8080',
+            borderRadius: 0
+          },
+          {
+            label: 'TaskUs',
+            data: weeks.map(w => weekMap[w].tu),
+            backgroundColor: '#6CB3B3',
+            borderRadius: 0
+          }
+        ]
       },
       options: {
         responsive: true,
         scales: {
-          y: { beginAtZero: true, grid: { color: '#F0F0F0' }, ticks: { font: { size: 11 } } },
-          x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+          y: { beginAtZero: true, stacked: true, grid: { color: '#F0F0F0' }, ticks: { font: { size: 11 }, stepSize: 1 } },
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } }
         },
-        plugins: { legend: { display: false } }
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } } }
       }
     });
   }
@@ -915,7 +923,7 @@
     document.getElementById('modalGrid').innerHTML = `
       <div class="modal-field"><label>Original Case #</label><span>${r.caseNumber || '—'}</span></div>
       <div class="modal-field"><label>Outreach Case #</label><span>${r.outreachCaseNumber || '—'}</span></div>
-      <div class="modal-field"><label>Agent</label><span>${r.agentName || '—'}</span></div>
+      <div class="modal-field"><label>Case Owner</label><span>${r.agentName || '—'}</span></div>
       <div class="modal-field"><label>Site</label><span>${r.site || '—'}</span></div>
       <div class="modal-field"><label>Original tNPS</label><span>${r.originalTNPS !== null && r.originalTNPS !== undefined ? r.originalTNPS : '—'}</span></div>
       <div class="modal-field"><label>Outreach tNPS</label><span>${r.outreachTNPS !== null && r.outreachTNPS !== undefined ? r.outreachTNPS : '—'}</span></div>
