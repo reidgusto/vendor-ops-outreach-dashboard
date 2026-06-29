@@ -371,7 +371,7 @@
         <div class="filter-row">
           <span class="filter-label">Site</span>
           <button class="site-tab active" id="site-all" onclick="setSite('all',this)">All Sites</button>
-          <button class="site-tab" id="site-tp" onclick="setSite('TP',this)">Teleperformance</button>
+          <button class="site-tab" id="site-tp" onclick="setSite('TP',this)">TP</button>
           <button class="site-tab" id="site-tu" onclick="setSite('TaskUs',this)">TaskUs</button>
         </div>
       </div>
@@ -556,7 +556,27 @@
 
   function populateWeekPicker() {
     if (!data || !data.outreachData) return;
-    const weeks = [...new Set(data.outreachData.map(r => r.week).filter(Boolean))].sort();
+    // Get the Monday of the current week
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sun
+    const currentMonday = new Date(today);
+    currentMonday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    currentMonday.setHours(0, 0, 0, 0);
+
+    // Only include weeks whose first entry date falls on or before the current week's Monday
+    const weekFirstDate = {};
+    data.outreachData.forEach(r => {
+      if (r.week && r.date) {
+        if (!weekFirstDate[r.week] || r.date < weekFirstDate[r.week]) {
+          weekFirstDate[r.week] = r.date;
+        }
+      }
+    });
+
+    const weeks = Object.keys(weekFirstDate)
+      .filter(w => new Date(weekFirstDate[w]) <= new Date(currentMonday.getTime() + 7 * 86400000))
+      .sort((a, b) => weekFirstDate[a].localeCompare(weekFirstDate[b]));
+
     const sel = document.getElementById('weekPicker');
     sel.innerHTML = '<option value="">Pick a week…</option>';
     weeks.forEach(w => {
@@ -769,14 +789,9 @@
     if (!r) return;
     document.getElementById('modalTitle').textContent = 'Case ' + r.caseNumber;
     document.getElementById('modalSub').textContent =
-      (r.accountName || 'Unknown Account') + ' — ' + fmtDate(r.date);
-
-    const sentText = r.verbalQ1 && r.verbalQ2
-      ? (r.verbalQ1 === 'Yes' && r.verbalQ2 === 'Yes' ? '✓ Positive' : '✗ Mixed')
-      : '—';
+      fmtDate(r.date) + (r.site ? ' — ' + r.site : '');
 
     document.getElementById('modalGrid').innerHTML = `
-      <div class="modal-field"><label>Account</label><span>${r.accountName || '—'}</span></div>
       <div class="modal-field"><label>Agent</label><span>${r.agentName || '—'}</span></div>
       <div class="modal-field"><label>Original tNPS</label><span>${r.originalTNPS !== null && r.originalTNPS !== undefined ? r.originalTNPS : '—'}</span></div>
       <div class="modal-field"><label>Outreach tNPS</label><span>${r.outreachTNPS !== null && r.outreachTNPS !== undefined ? r.outreachTNPS : '—'}</span></div>
