@@ -78,9 +78,11 @@
       margin-bottom: 20px;
     }
 
-    .filter-row { display: flex; gap: 8px; }
+    .filter-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .filter-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); min-width: 52px; }
     .filter-tab {
-      padding: 8px 22px;
+      padding: 7px 18px;
       border-radius: 20px;
       border: 2px solid var(--kale);
       background: var(--white);
@@ -92,8 +94,33 @@
     }
     .filter-tab:hover { background: var(--kale-20); }
     .filter-tab.active { background: var(--kale); color: var(--white); }
-
-    .last-updated { font-size: 12px; color: var(--gray); }
+    .site-tab {
+      padding: 7px 18px;
+      border-radius: 20px;
+      border: 2px solid var(--kale-60);
+      background: var(--white);
+      color: var(--kale-60);
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .site-tab:hover { background: var(--kale-20); }
+    .site-tab.active { background: var(--kale-60); color: var(--white); }
+    .week-select {
+      padding: 7px 14px;
+      border-radius: 20px;
+      border: 2px solid var(--kale);
+      background: var(--white);
+      color: var(--kale);
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      outline: none;
+    }
+    .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+    .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
+    .last-updated { font-size: 12px; color: var(--gray); padding-top: 4px; }
 
     /* KPI cards */
     .kpi-row {
@@ -328,10 +355,25 @@
   <div id="dashboardView" style="display:none">
 
     <div class="top-row">
-      <div class="filter-row">
-        <button class="filter-tab active" id="tab-daily" onclick="setFilter('daily',this)">Daily</button>
-        <button class="filter-tab" id="tab-weekly" onclick="setFilter('weekly',this)">Weekly</button>
-        <button class="filter-tab" id="tab-monthly" onclick="setFilter('monthly',this)">Monthly</button>
+      <div class="filter-bar">
+        <!-- Time filter -->
+        <div class="filter-row">
+          <span class="filter-label">Period</span>
+          <button class="filter-tab active" id="tab-weekly" onclick="setFilter('weekly',this)">Last 7 Days</button>
+          <button class="filter-tab" id="tab-monthly" onclick="setFilter('monthly',this)">Last 30 Days</button>
+          <button class="filter-tab" id="tab-all" onclick="setFilter('all',this)">All Time</button>
+          <div class="filter-divider"></div>
+          <select class="week-select" id="weekPicker" onchange="setWeekFilter(this.value)">
+            <option value="">Pick a week…</option>
+          </select>
+        </div>
+        <!-- Site filter -->
+        <div class="filter-row">
+          <span class="filter-label">Site</span>
+          <button class="site-tab active" id="site-all" onclick="setSite('all',this)">All Sites</button>
+          <button class="site-tab" id="site-tp" onclick="setSite('TP',this)">Teleperformance</button>
+          <button class="site-tab" id="site-tu" onclick="setSite('TaskUs',this)">TaskUs</button>
+        </div>
       </div>
       <div class="last-updated" id="lastUpdated"></div>
     </div>
@@ -433,7 +475,9 @@
 
   const LAUNCH = new Date('2026-07-01T00:00:00');
   const TARGET = 57;
-  let filter = 'daily';
+  let filter = 'weekly';
+  let siteFilter = 'all';
+  let weekFilter = '';
   let data = null;
   let chartTNPS = null;
   let chartVol = null;
@@ -462,6 +506,7 @@
         document.getElementById('lastUpdated').textContent =
           'Last updated: ' + new Date(data.lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       }
+      populateWeekPicker();
       render();
     }
   }
@@ -484,25 +529,68 @@
 
   function setFilter(f, el) {
     filter = f;
+    weekFilter = '';
+    document.getElementById('weekPicker').value = '';
     document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
     render();
   }
 
+  function setWeekFilter(val) {
+    weekFilter = val;
+    if (val) {
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    } else {
+      document.getElementById('tab-weekly').classList.add('active');
+      filter = 'weekly';
+    }
+    render();
+  }
+
+  function setSite(s, el) {
+    siteFilter = s;
+    document.querySelectorAll('.site-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    render();
+  }
+
+  function populateWeekPicker() {
+    if (!data || !data.outreachData) return;
+    const weeks = [...new Set(data.outreachData.map(r => r.week).filter(Boolean))].sort();
+    const sel = document.getElementById('weekPicker');
+    sel.innerHTML = '<option value="">Pick a week…</option>';
+    weeks.forEach(w => {
+      const opt = document.createElement('option');
+      opt.value = w; opt.textContent = 'Week of ' + w;
+      sel.appendChild(opt);
+    });
+  }
+
   function filtered() {
     if (!data || !data.outreachData) return [];
-    const rows = data.outreachData;
-    // Use the latest date in the dataset as the reference point (handles preview/future data)
+    let rows = data.outreachData;
+
+    // Site filter
+    if (siteFilter !== 'all') {
+      rows = rows.filter(r => r.site === siteFilter);
+    }
+
+    // Week picker overrides period filter
+    if (weekFilter) {
+      return rows.filter(r => r.week === weekFilter);
+    }
+
+    // Period filter — use latest date in dataset as reference (handles preview data)
     const dates = rows.map(r => new Date(r.date));
     const latest = dates.length ? new Date(Math.max(...dates)) : new Date();
     return rows.filter(r => {
       const d = new Date(r.date);
-      if (filter === 'daily') {
-        const cut = new Date(latest); cut.setDate(cut.getDate() - 1); return d >= cut;
-      } else if (filter === 'weekly') {
+      if (filter === 'weekly') {
         const cut = new Date(latest); cut.setDate(cut.getDate() - 7); return d >= cut;
-      } else {
+      } else if (filter === 'monthly') {
         const cut = new Date(latest); cut.setMonth(cut.getMonth() - 1); return d >= cut;
+      } else {
+        return true; // all time
       }
     });
   }
