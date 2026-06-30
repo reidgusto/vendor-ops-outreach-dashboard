@@ -156,20 +156,27 @@
     .compare-winner { color: var(--kale); }
     .compare-lower { color: var(--gray); }
 
-    /* Executive Summary */
-    .exec-tab-btn {
-      padding: 8px 22px;
-      border-radius: 20px;
-      border: 2px solid var(--guava);
-      background: var(--white);
-      color: var(--guava);
-      font-size: 13px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.15s;
+    /* Main tab nav */
+    .main-tab-bar {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 20px;
     }
-    .exec-tab-btn:hover { background: var(--guava-light); }
-    .exec-tab-btn.active { background: var(--guava); color: var(--white); }
+    .main-tab {
+      padding: 10px 22px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .main-tab:hover { color: var(--dark); }
+    .main-tab.active { color: var(--kale); border-bottom-color: var(--kale); }
 
     #execView { display: none; }
 
@@ -456,12 +463,16 @@
   <!-- Main dashboard -->
   <div id="dashboardView" style="display:none">
 
+    <!-- Main tab navigation -->
+    <nav class="main-tab-bar">
+      <button class="main-tab active" data-tab="overview" onclick="setTab('overview')">Overview</button>
+      <button class="main-tab" data-tab="team" onclick="setTab('team')">Team</button>
+      <button class="main-tab" data-tab="activity" onclick="setTab('activity')">Activity</button>
+      <button class="main-tab" data-tab="exec" onclick="setTab('exec')">Executive Summary</button>
+    </nav>
+
     <div class="top-row">
       <div class="filter-bar">
-        <!-- View toggle -->
-        <div class="filter-row" style="margin-bottom:4px">
-          <button class="exec-tab-btn" id="execTabBtn" onclick="toggleExecView()">Executive Summary</button>
-        </div>
         <!-- Time filter -->
         <div class="filter-row" id="periodFilterRow">
           <span class="filter-label">Period</span>
@@ -556,7 +567,7 @@
       <div id="compareTableWrap"></div>
     </div>
 
-    <div class="card" style="margin-bottom:24px">
+    <div class="card" style="margin-bottom:24px" id="activityPanel">
       <h3>Recent Outreach Activity</h3>
       <p class="sub" style="margin-bottom:16px">Most recent contacts across the program</p>
       <div class="table-wrap" id="tableWrap"></div>
@@ -566,7 +577,6 @@
     <div id="execView">
       <div class="exec-header">
         <div class="exec-header-left">
-          <button onclick="toggleExecView()" style="background:none;border:none;cursor:pointer;color:var(--kale);font-size:13px;font-weight:600;padding:0 0 8px 0;display:flex;align-items:center;gap:4px;">← Back to Dashboard</button>
           <h2>Executive Summary</h2>
           <p id="execSubtitle">Detractor &amp; Passive Outreach Program — Gusto Vendor Operations</p>
         </div>
@@ -681,6 +691,7 @@
       }
       populateWeekPicker();
       render();
+      setTab('overview');
     }
   }
 
@@ -700,39 +711,36 @@
   }
   function pad(n) { return String(n).padStart(2, '0'); }
 
-  let execMode = false;
+  let currentTab = 'overview';
 
-  function toggleExecView() {
-    execMode = !execMode;
-    const btn = document.getElementById('execTabBtn');
-    const periodRow = document.getElementById('periodFilterRow');
-    const siteRow = document.getElementById('siteFilterRow');
-    const kpiBlocks = document.querySelectorAll('.kpi-row, .kpi-row-2, .charts-row, #comparePanel, .card:not(#execView .exec-col-card):not(#execView .exec-site-card):not(#execView .exec-milestone)');
+  function setTab(tab) {
+    currentTab = tab;
+    // Update tab button states
+    document.querySelectorAll('.main-tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    // Filters visible on all tabs except exec
+    const showFilters = tab !== 'exec';
+    document.getElementById('periodFilterRow').style.display = showFilters ? '' : 'none';
+    document.getElementById('siteFilterRow').style.display = showFilters ? '' : 'none';
+    document.getElementById('lastUpdated').style.display = showFilters ? '' : 'none';
 
-    if (execMode) {
-      btn.classList.add('active');
-      btn.textContent = '← Dashboard';
-      periodRow.style.display = 'none';
-      siteRow.style.display = 'none';
-      document.querySelectorAll('.kpi-row, .kpi-row-2').forEach(e => e.style.display = 'none');
-      document.querySelector('.charts-row').style.display = 'none';
-      document.getElementById('comparePanel').style.display = 'none';
-      document.getElementById('smePanel').style.display = 'none';
-      document.querySelectorAll('#dashboardView > .card').forEach(e => e.style.display = 'none');
-      document.getElementById('execView').style.display = 'block';
-      renderExecSummary();
-    } else {
-      btn.classList.remove('active');
-      btn.textContent = 'Executive Summary';
-      periodRow.style.display = '';
-      siteRow.style.display = '';
-      document.querySelectorAll('.kpi-row, .kpi-row-2').forEach(e => e.style.display = '');
-      document.querySelector('.charts-row').style.display = '';
-      document.getElementById('comparePanel').style.display = '';
-      document.getElementById('smePanel').style.display = '';
-      document.querySelectorAll('#dashboardView > .card').forEach(e => e.style.display = '');
-      document.getElementById('execView').style.display = 'none';
-    }
+    // Section visibility
+    const show = (id, visible) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = visible ? '' : 'none';
+    };
+    const showEl = (el, visible) => { if (el) el.style.display = visible ? '' : 'none'; };
+
+    showEl(document.querySelector('.kpi-row'),  tab === 'overview');
+    showEl(document.querySelector('.kpi-row-2'), tab === 'overview');
+    showEl(document.querySelector('.charts-row'), tab === 'overview');
+    show('smePanel',      tab === 'team');
+    show('comparePanel',  tab === 'team');
+    show('activityPanel', tab === 'activity');
+    show('execView',      tab === 'exec');
+
+    if (tab === 'exec') renderExecSummary();
   }
 
   function calcMetrics(rows) {
