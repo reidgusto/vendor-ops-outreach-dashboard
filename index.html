@@ -551,8 +551,10 @@
 
     <div class="card" style="margin-bottom:24px" id="smePanel">
       <h3>Outreach Volume by SME</h3>
-      <p class="sub">Cases identified per agent for the selected period — sorted by volume</p>
-      <canvas id="smeChart"></canvas>
+      <p class="sub">Completed outreaches per agent for the selected period — sorted by volume</p>
+      <div style="position:relative;height:240px">
+        <canvas id="smeChart"></canvas>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom:24px" id="comparePanel">
@@ -732,7 +734,9 @@
     show('smePanel',      tab === 'team');
     show('comparePanel',  tab === 'team');
     show('activityPanel', tab === 'activity');
-    show('execView',      tab === 'exec');
+    // execView has CSS display:none so must set explicitly to block
+    const ev = document.getElementById('execView');
+    if (ev) ev.style.display = tab === 'exec' ? 'block' : 'none';
 
     if (tab === 'exec') renderExecSummary();
   }
@@ -1121,10 +1125,10 @@
   }
 
   function renderSMEChart(rows) {
-    // Count cases per agent, sorted descending
+    // Count completed outreaches per agent, sorted ascending (lowest at top)
     const counts = {};
     const sites = {};
-    rows.forEach(r => {
+    rows.filter(r => r.outreachCompleted).forEach(r => {
       if (!r.agentName) return;
       counts[r.agentName] = (counts[r.agentName] || 0) + 1;
       sites[r.agentName] = r.site;
@@ -1140,10 +1144,7 @@
     // Average line value
     const avg = values.length ? +(values.reduce((a,b)=>a+b,0)/values.length).toFixed(1) : 0;
 
-    // Dynamic canvas height based on agent count
     const canvas = document.getElementById('smeChart');
-    canvas.height = 260;
-
     const ctx = canvas.getContext('2d');
     if (chartSME) chartSME.destroy();
     chartSME = new Chart(ctx, {
@@ -1318,10 +1319,11 @@
       fmtDate(r.date) + (r.site ? ' — ' + r.site : '');
 
     document.getElementById('modalGrid').innerHTML = `
+      <div class="modal-field"><label>Account Name</label><span>${r.accountName || '—'}</span></div>
+      <div class="modal-field"><label>Site</label><span>${r.site || '—'}</span></div>
       <div class="modal-field"><label>Original Case #</label><span>${r.caseNumber || '—'}</span></div>
       <div class="modal-field"><label>Outreach Case #</label><span>${r.outreachCaseNumber || '—'}</span></div>
-      <div class="modal-field"><label>Case Owner</label><span>${r.agentName || '—'}</span></div>
-      <div class="modal-field"><label>Site</label><span>${r.site || '—'}</span></div>
+      <div class="modal-field"><label>Outreach Owner (SME)</label><span>${r.agentName || '—'}</span></div>
       <div class="modal-field"><label>Original tNPS</label><span>${r.originalTNPS !== null && r.originalTNPS !== undefined ? r.originalTNPS : '—'}</span></div>
       <div class="modal-field"><label>Outreach tNPS</label><span>${r.outreachTNPS !== null && r.outreachTNPS !== undefined ? r.outreachTNPS : '—'}</span></div>
       <div class="modal-field"><label>ARR</label><span>${r.arr !== null && r.arr !== undefined ? '$' + Number(r.arr).toLocaleString() : '—'}</span></div>
