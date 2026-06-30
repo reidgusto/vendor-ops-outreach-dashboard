@@ -534,12 +534,6 @@
         <div class="kpi-target">Avg ARR of completed outreaches</div>
         <span class="kpi-pill pill-none" id="kpARR">No data yet</span>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Churn Risk</div>
-        <div class="kpi-value" id="kvChurn">—</div>
-        <div class="kpi-target">% still detractor post-outreach</div>
-        <span class="kpi-pill pill-none" id="kpChurn">No data yet</span>
-      </div>
     </div>
 
     <div class="charts-row">
@@ -753,9 +747,7 @@
     const sentPct = sentRows.length ? Math.round(sentRows.filter(r=>r.verbalQ1==='Yes'&&r.verbalQ2==='Yes').length/sentRows.length*100) : null;
     const arrRows = done.filter(r => r.arr != null);
     const totalARR = arrRows.reduce((s,r)=>s+r.arr,0);
-    const churnBase = done.filter(r => r.outreachTNPS != null);
-    const churnPct = churnBase.length ? Math.round(churnBase.filter(r=>r.outreachTNPS<=6).length/churnBase.length*100) : null;
-    return { total: rows.length, done: done.length, avgTNPS, avgLift, sentPct, totalARR, churnPct };
+    return { total: rows.length, done: done.length, avgTNPS, avgLift, sentPct, totalARR };
   }
 
   function renderExecSummary() {
@@ -815,7 +807,6 @@
     // Auto-generated narrative
     const trendDir = wm.avgLift != null ? (wm.avgLift > 0 ? 'improved' : wm.avgLift === 0 ? 'held steady' : 'declined') : null;
     const sentWord = wm.sentPct != null ? (wm.sentPct >= 80 ? 'strong' : wm.sentPct >= 60 ? 'positive' : 'mixed') : null;
-    const churnWord = wm.churnPct != null ? (wm.churnPct <= 15 ? 'low' : wm.churnPct <= 30 ? 'moderate' : 'elevated') : null;
 
     let narrative = '';
     if (wm.done > 0) {
@@ -829,7 +820,6 @@
 
       if (wm.sentPct != null) narrative += `<p>Verbal sentiment was <strong>${sentWord}</strong> this week, with <strong>${wm.sentPct}%</strong> of customers confirming their issue was resolved and that they feel more confident using Gusto.</p>`;
 
-      if (wm.churnPct != null) narrative += `<p>Churn risk is <strong>${churnWord}</strong> at <strong>${wm.churnPct}%</strong> of contacted customers remaining in the detractor range post-outreach.${wm.churnPct > 20 ? ' These cases warrant follow-up review.' : ''}</p>`;
 
       if (wm.totalARR) narrative += `<p>Total ARR touched this week: <strong>${fmtA(wm.totalARR)}</strong>.${mm.totalARR ? ' Month to date: <strong>' + fmtA(mm.totalARR) + '</strong>.' : ''}</p>`;
     } else {
@@ -844,7 +834,6 @@
       ['tNPS Lift', fmtLift(wm.avgLift), wm.avgLift > 0],
       ['Verbal Sentiment', wm.sentPct != null ? wm.sentPct+'%' : '—', wm.sentPct >= 70],
       ['Total ARR Touched', wm.totalARR ? fmtA(wm.totalARR) : '—', wm.totalARR > 0],
-      ['Churn Risk', wm.churnPct != null ? wm.churnPct+'%' : '—', wm.churnPct <= 20],
     ]);
 
     // MTD metrics
@@ -854,7 +843,6 @@
       ['tNPS Lift', fmtLift(mm.avgLift), mm.avgLift > 0],
       ['Verbal Sentiment', mm.sentPct != null ? mm.sentPct+'%' : '—', mm.sentPct >= 70],
       ['Total ARR Touched', mm.totalARR ? fmtA(mm.totalARR) : '—', mm.totalARR > 0],
-      ['Churn Risk', mm.churnPct != null ? mm.churnPct+'%' : '—', mm.churnPct <= 20],
     ]);
 
     // Site stats
@@ -1027,13 +1015,6 @@
     setPill('kpTotalARR', withARR.length, withARR.length ? withARR.length + ' customers' : 'No data yet', withARR.length > 0 ? true : null);
     document.getElementById('kvARR').textContent = avgARR !== null ? fmtARR(avgARR) : '—';
     setPill('kpARR', avgARR, avgARR !== null ? withARR.length + ' contacts' : 'No data yet', avgARR !== null ? true : null);
-
-    // Churn risk — % still ≤6 post-outreach
-    const withPost = done.filter(r => r.outreachTNPS !== null && r.outreachTNPS !== undefined);
-    const stillDet = withPost.filter(r => r.outreachTNPS <= 6).length;
-    const churnPct = withPost.length ? Math.round(stillDet / withPost.length * 100) : null;
-    document.getElementById('kvChurn').textContent = churnPct !== null ? churnPct + '%' : '—';
-    setPill('kpChurn', churnPct, churnPct !== null ? (churnPct <= 20 ? 'Low Risk' : 'Monitor') : 'No data yet', churnPct !== null ? churnPct <= 20 : null);
 
     renderCharts(rows, done);
     renderSMEChart(rows);
@@ -1245,9 +1226,7 @@
     const sentPct = sent.length ? Math.round(sent.filter(r=>r.verbalQ1==='Yes'&&r.verbalQ2==='Yes').length/sent.length*100) : null;
     const arrRows = done.filter(r => r.arr != null);
     const totalARR = arrRows.reduce((s,r)=>s+r.arr,0);
-    const churnBase = done.filter(r => r.outreachTNPS != null);
-    const churnPct = churnBase.length ? Math.round(churnBase.filter(r=>r.outreachTNPS<=6).length/churnBase.length*100) : null;
-    return { cases: sr.length, done: done.length, avgTNPS, avgLift, sentPct, totalARR, churnPct };
+    return { cases: sr.length, done: done.length, avgTNPS, avgLift, sentPct, totalARR };
   }
 
   function renderComparison(rows) {
@@ -1276,8 +1255,6 @@
     const [tpTNPS, tuTNPS] = winner(tp.avgTNPS, tu.avgTNPS);
     const [tpLift, tuLift] = winner(tp.avgLift !== null ? tp.avgLift : null, tu.avgLift !== null ? tu.avgLift : null);
     const [tpSent, tuSent] = winner(tp.sentPct !== null ? tp.sentPct+'%' : null, tu.sentPct !== null ? tu.sentPct+'%' : null, true);
-    const [tpChurn, tuChurn] = winner(tp.churnPct !== null ? tp.churnPct+'%' : null, tu.churnPct !== null ? tu.churnPct+'%' : null, false);
-
     document.getElementById('compareTableWrap').innerHTML = `
       <table class="compare-table">
         <thead>
@@ -1294,7 +1271,6 @@
           <tr><td>tNPS Lift</td><td class="val">${tp.avgLift !== null ? (tp.avgLift>=0?'+':'')+tp.avgLift+' pts' : '—'}</td><td class="val">${tu.avgLift !== null ? (tu.avgLift>=0?'+':'')+tu.avgLift+' pts' : '—'}</td></tr>
           <tr><td>Verbal Sentiment</td><td class="val">${tpSent}</td><td class="val">${tuSent}</td></tr>
           <tr><td>Total ARR Touched</td><td class="val">${tp.totalARR ? fA(tp.totalARR) : '—'}</td><td class="val">${tu.totalARR ? fA(tu.totalARR) : '—'}</td></tr>
-          <tr><td>Churn Risk</td><td class="val">${tpChurn}</td><td class="val">${tuChurn}</td></tr>
         </tbody>
       </table>`;
   }
