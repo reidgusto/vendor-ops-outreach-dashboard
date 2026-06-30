@@ -502,12 +502,6 @@
         <div class="kpi-target">Target: &gt;57</div>
         <span class="kpi-pill pill-none" id="kpTNPS">No data yet</span>
       </div>
-      <div class="kpi-card" id="liftCard">
-        <div class="kpi-label">tNPS Lift</div>
-        <div class="kpi-value" id="kvLift">—</div>
-        <div class="kpi-target">Avg score change after outreach</div>
-        <span class="kpi-pill pill-none" id="kpLift">No data yet</span>
-      </div>
       <div class="kpi-card">
         <div class="kpi-label">Overall Team tNPS Trend</div>
         <div class="kpi-value" id="kvTeamTNPS">—</div>
@@ -745,13 +739,11 @@
     const done = rows.filter(r => r.outreachCompleted);
     const outScores = done.filter(r => r.outreachTNPS != null).map(r => r.outreachTNPS);
     const avgTNPS = outScores.length ? +(outScores.reduce((a,b)=>a+b,0)/outScores.length).toFixed(1) : null;
-    const liftPairs = done.filter(r => r.outreachTNPS != null && r.originalTNPS != null);
-    const avgLift = liftPairs.length ? +(liftPairs.reduce((a,r)=>a+(r.outreachTNPS-r.originalTNPS),0)/liftPairs.length).toFixed(1) : null;
     const sentRows = done.filter(r => r.verbalQ1 && r.verbalQ2);
     const sentPct = sentRows.length ? Math.round(sentRows.filter(r=>r.verbalQ1==='Yes'&&r.verbalQ2==='Yes').length/sentRows.length*100) : null;
     const arrRows = done.filter(r => r.arr != null);
     const totalARR = arrRows.reduce((s,r)=>s+r.arr,0);
-    return { total: rows.length, done: done.length, avgTNPS, avgLift, sentPct, totalARR };
+    return { total: rows.length, done: done.length, avgTNPS, sentPct, totalARR };
   }
 
   function renderExecSummary() {
@@ -779,7 +771,6 @@
 
     // Format helpers
     const fmtA = v => v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : '$'+v;
-    const fmtLift = v => v != null ? (v >= 0 ? '+' : '')+v+' pts' : '—';
     const fmt = v => v != null ? v : '—';
 
     // Status banner
@@ -809,7 +800,6 @@
     if (latestWeek) document.getElementById('execSubtitle').textContent = 'Week of ' + latestWeek + ' · Gusto Vendor Operations';
 
     // Auto-generated narrative
-    const trendDir = wm.avgLift != null ? (wm.avgLift > 0 ? 'improved' : wm.avgLift === 0 ? 'held steady' : 'declined') : null;
     const sentWord = wm.sentPct != null ? (wm.sentPct >= 80 ? 'strong' : wm.sentPct >= 60 ? 'positive' : 'mixed') : null;
 
     let narrative = '';
@@ -820,7 +810,6 @@
       narrative += wm.avgTNPS >= TARGET ? `above the program target of ${TARGET}.` : `below the program target of ${TARGET}, requiring attention.`;
       narrative += `</p>`;
 
-      if (wm.avgLift != null) narrative += `<p>Customer scores <strong>${trendDir}</strong> by an average of <strong>${fmtLift(wm.avgLift)}</strong> following outreach, indicating that proactive contact is ${wm.avgLift > 0 ? 'positively impacting customer perception.' : 'not yet moving scores — review call quality and case selection.'}</p>`;
 
       if (wm.sentPct != null) narrative += `<p>Verbal sentiment was <strong>${sentWord}</strong> this week, with <strong>${wm.sentPct}%</strong> of customers confirming their issue was resolved and that they feel more confident using Gusto.</p>`;
 
@@ -835,7 +824,6 @@
     document.getElementById('execWeekMetrics').innerHTML = metricRows([
       ['Customers Contacted', fmt(wm.done), wm.done > 0],
       ['Avg tNPS (Post-Outreach)', fmt(wm.avgTNPS), wm.avgTNPS >= TARGET],
-      ['tNPS Lift', fmtLift(wm.avgLift), wm.avgLift > 0],
       ['Verbal Sentiment', wm.sentPct != null ? wm.sentPct+'%' : '—', wm.sentPct >= 70],
       ['Total ARR Touched', wm.totalARR ? fmtA(wm.totalARR) : '—', wm.totalARR > 0],
     ]);
@@ -844,7 +832,6 @@
     document.getElementById('execMTDMetrics').innerHTML = metricRows([
       ['Customers Contacted', fmt(mm.done), mm.done > 0],
       ['Avg tNPS (Post-Outreach)', fmt(mm.avgTNPS), mm.avgTNPS >= TARGET],
-      ['tNPS Lift', fmtLift(mm.avgLift), mm.avgLift > 0],
       ['Verbal Sentiment', mm.sentPct != null ? mm.sentPct+'%' : '—', mm.sentPct >= 70],
       ['Total ARR Touched', mm.totalARR ? fmtA(mm.totalARR) : '—', mm.totalARR > 0],
     ]);
@@ -885,7 +872,6 @@
       ['Cases Identified', m.total || '—'],
       ['Outreach Completed', m.done || '—'],
       ['Avg tNPS', m.avgTNPS != null ? m.avgTNPS : '—'],
-      ['tNPS Lift', m.avgLift != null ? (m.avgLift>=0?'+':'')+m.avgLift+' pts' : '—'],
       ['Verbal Sentiment', m.sentPct != null ? m.sentPct+'%' : '—'],
       ['ARR Touched', m.totalARR ? fA(m.totalARR) : '—'],
     ].map(([l,v]) => `<div class="exec-site-stat"><span>${l}</span><span>${v}</span></div>`).join('');
@@ -989,13 +975,6 @@
     document.getElementById('kvTNPS').textContent = avgT !== null ? avgT : '—';
     setPill('kpTNPS', avgT, avgT !== null ? (avgT >= TARGET ? 'On Target' : 'Below Target') : 'No data yet', avgT !== null ? avgT >= TARGET : null);
 
-    // tNPS Lift — avg (outreachTNPS - originalTNPS)
-    const liftData = done.filter(r => r.outreachTNPS !== null && r.outreachTNPS !== undefined && r.originalTNPS !== null && r.originalTNPS !== undefined);
-    const avgLift = liftData.length ? +(liftData.reduce((a,r)=>a+(r.outreachTNPS - r.originalTNPS),0)/liftData.length).toFixed(1) : null;
-    document.getElementById('kvLift').textContent = avgLift !== null ? (avgLift >= 0 ? '+' : '') + avgLift + ' pts' : '—';
-    const liftCard = document.getElementById('liftCard');
-    liftCard.className = 'kpi-card' + (avgLift !== null ? (avgLift > 0 ? ' lift-pos' : ' lift-neg') : '');
-    setPill('kpLift', avgLift, avgLift !== null ? (avgLift > 0 ? 'Improving' : 'No Change') : 'No data yet', avgLift !== null ? avgLift > 0 : null);
 
     // Overall team tNPS trend — avg original tNPS of all cases in period
     const allOrig = rows.filter(r => r.originalTNPS !== null && r.originalTNPS !== undefined).map(r => r.originalTNPS);
@@ -1220,13 +1199,11 @@
     const done = sr.filter(r => r.outreachCompleted);
     const scores = done.filter(r => r.outreachTNPS != null).map(r => r.outreachTNPS);
     const avgTNPS = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
-    const liftPairs = done.filter(r => r.outreachTNPS != null && r.originalTNPS != null);
-    const avgLift = liftPairs.length ? +(liftPairs.reduce((a,r)=>a+(r.outreachTNPS-r.originalTNPS),0)/liftPairs.length).toFixed(1) : null;
     const sent = done.filter(r => r.verbalQ1 && r.verbalQ2);
     const sentPct = sent.length ? Math.round(sent.filter(r=>r.verbalQ1==='Yes'&&r.verbalQ2==='Yes').length/sent.length*100) : null;
     const arrRows = done.filter(r => r.arr != null);
     const totalARR = arrRows.reduce((s,r)=>s+r.arr,0);
-    return { cases: sr.length, done: done.length, avgTNPS, avgLift, sentPct, totalARR };
+    return { cases: sr.length, done: done.length, avgTNPS, sentPct, totalARR };
   }
 
   function renderComparison(rows) {
@@ -1253,7 +1230,6 @@
 
     const fA = v => v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : '$'+v;
     const [tpTNPS, tuTNPS] = winner(tp.avgTNPS, tu.avgTNPS);
-    const [tpLift, tuLift] = winner(tp.avgLift !== null ? tp.avgLift : null, tu.avgLift !== null ? tu.avgLift : null);
     const [tpSent, tuSent] = winner(tp.sentPct !== null ? tp.sentPct+'%' : null, tu.sentPct !== null ? tu.sentPct+'%' : null, true);
     document.getElementById('compareTableWrap').innerHTML = `
       <table class="compare-table">
@@ -1268,7 +1244,6 @@
           <tr><td>Cases Identified</td><td class="val">${tp.cases}</td><td class="val">${tu.cases}</td></tr>
           <tr><td>Outreach Completed</td><td class="val">${tp.done}</td><td class="val">${tu.done}</td></tr>
           <tr><td>Avg tNPS (Post-Outreach)</td><td class="val">${tpTNPS}</td><td class="val">${tuTNPS}</td></tr>
-          <tr><td>tNPS Lift</td><td class="val">${tp.avgLift !== null ? (tp.avgLift>=0?'+':'')+tp.avgLift+' pts' : '—'}</td><td class="val">${tu.avgLift !== null ? (tu.avgLift>=0?'+':'')+tu.avgLift+' pts' : '—'}</td></tr>
           <tr><td>Verbal Sentiment</td><td class="val">${tpSent}</td><td class="val">${tuSent}</td></tr>
           <tr><td>Total ARR Touched</td><td class="val">${tp.totalARR ? fA(tp.totalARR) : '—'}</td><td class="val">${tu.totalARR ? fA(tu.totalARR) : '—'}</td></tr>
         </tbody>
