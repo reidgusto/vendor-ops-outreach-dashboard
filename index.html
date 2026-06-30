@@ -1142,7 +1142,7 @@
 
     // Dynamic canvas height based on agent count
     const canvas = document.getElementById('smeChart');
-    canvas.height = Math.max(120, labels.length * 36);
+    canvas.height = 260;
 
     const ctx = canvas.getContext('2d');
     if (chartSME) chartSME.destroy();
@@ -1154,8 +1154,7 @@
           label: 'Cases',
           data: values,
           backgroundColor: colors,
-          borderRadius: 3,
-          barThickness: 20
+          borderRadius: 3
         }]
       },
       options: {
