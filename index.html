@@ -476,8 +476,8 @@
         <!-- Time filter -->
         <div class="filter-row" id="periodFilterRow">
           <span class="filter-label">Period</span>
-          <button class="filter-tab active" id="tab-weekly" onclick="setFilter('weekly',this)">Last 7 Days</button>
-          <button class="filter-tab" id="tab-monthly" onclick="setFilter('monthly',this)">Last 30 Days</button>
+          <button class="filter-tab active" id="tab-weekly" onclick="setFilter('weekly',this)">Weekly</button>
+          <button class="filter-tab" id="tab-monthly" onclick="setFilter('monthly',this)">Monthly</button>
           <button class="filter-tab" id="tab-all" onclick="setFilter('all',this)">All Time</button>
           <div class="filter-divider"></div>
           <select class="week-select" id="weekPicker" onchange="setWeekFilter(this.value)" style="display:none">
@@ -757,8 +757,8 @@
       const [yr, mo] = monthFilter.split('-');
       return new Date(yr, mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
-    if (filter === 'weekly')  return 'Last 7 Days';
-    if (filter === 'monthly') return 'Last 30 Days';
+    if (filter === 'weekly')  return 'Weekly View';
+    if (filter === 'monthly') return 'Monthly View';
     return 'All Time';
   }
 
