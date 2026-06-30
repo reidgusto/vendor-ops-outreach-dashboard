@@ -480,8 +480,11 @@
           <button class="filter-tab" id="tab-monthly" onclick="setFilter('monthly',this)">Last 30 Days</button>
           <button class="filter-tab" id="tab-all" onclick="setFilter('all',this)">All Time</button>
           <div class="filter-divider"></div>
-          <select class="week-select" id="weekPicker" onchange="setWeekFilter(this.value)">
+          <select class="week-select" id="weekPicker" onchange="setWeekFilter(this.value)" style="display:none">
             <option value="">Pick a week…</option>
+          </select>
+          <select class="week-select" id="monthPicker" onchange="setMonthFilter(this.value)" style="display:none">
+            <option value="">Pick a month…</option>
           </select>
         </div>
         <!-- Site filter -->
@@ -650,6 +653,7 @@
   let filter = 'weekly';
   let siteFilter = 'all';
   let weekFilter = '';
+  let monthFilter = '';
   let data = null;
   let chartTNPS = null;
   let chartVol = null;
@@ -680,6 +684,8 @@
           'Last updated: ' + new Date(data.lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       }
       populateWeekPicker();
+      populateMonthPicker();
+      updatePickerVisibility();
       render();
       setTab('overview');
     }
@@ -709,11 +715,10 @@
     document.querySelectorAll('.main-tab').forEach(b => {
       b.classList.toggle('active', b.dataset.tab === tab);
     });
-    // Filters visible on all tabs except exec
-    const showFilters = tab !== 'exec';
-    document.getElementById('periodFilterRow').style.display = showFilters ? '' : 'none';
-    document.getElementById('siteFilterRow').style.display = showFilters ? '' : 'none';
-    document.getElementById('lastUpdated').style.display = showFilters ? '' : 'none';
+    // Period filter visible on all tabs; site filter hidden on exec
+    document.getElementById('periodFilterRow').style.display = '';
+    document.getElementById('siteFilterRow').style.display = tab === 'exec' ? 'none' : '';
+    document.getElementById('lastUpdated').style.display = '';
 
     // Section visibility
     const show = (id, visible) => {
@@ -746,47 +751,36 @@
     return { total: rows.length, done: done.length, avgTNPS, sentPct, totalARR };
   }
 
+  function periodLabel() {
+    if (weekFilter)  return 'Week of ' + weekFilter;
+    if (monthFilter) {
+      const [yr, mo] = monthFilter.split('-');
+      return new Date(yr, mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+    if (filter === 'weekly')  return 'Last 7 Days';
+    if (filter === 'monthly') return 'Last 30 Days';
+    return 'All Time';
+  }
+
   function renderExecSummary() {
+    const rows = filtered();
+    const fmtA = v => v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : '$'+v;
+    const fmt  = v => v != null ? v : '—';
+
     if (!data || !data.outreachData || !data.outreachData.length) {
       document.getElementById('execNarrative').innerHTML = '<p>No outreach data available yet. The program launched July 1, 2026 — check back after the first daily update runs.</p>';
+      document.getElementById('execStatusBanner').className = 'status-banner no-data';
+      document.getElementById('execStatusText').textContent = 'Awaiting outreach data for this period';
       return;
     }
 
-    const allRows = data.outreachData;
-    const dates = allRows.map(r => new Date(r.date));
-    const latest = new Date(Math.max(...dates));
+    const pm = calcMetrics(rows);
+    const tp = calcMetrics(rows.filter(r => r.site === 'TP'));
+    const tu = calcMetrics(rows.filter(r => r.site === 'TaskUs'));
+    const label = periodLabel();
 
-    // Week = last 7 days from latest date
-    const weekCut = new Date(latest); weekCut.setDate(latest.getDate() - 7);
-    const weekRows = allRows.filter(r => new Date(r.date) >= weekCut);
-
-    // MTD = last 30 days from latest date
-    const mtdCut = new Date(latest); mtdCut.setMonth(latest.getMonth() - 1);
-    const mtdRows = allRows.filter(r => new Date(r.date) >= mtdCut);
-
-    const wm = calcMetrics(weekRows);
-    const mm = calcMetrics(mtdRows);
-    const tp = calcMetrics(weekRows.filter(r => r.site === 'TP'));
-    const tu = calcMetrics(weekRows.filter(r => r.site === 'TaskUs'));
-
-    // Format helpers
-    const fmtA = v => v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : '$'+v;
-    const fmt = v => v != null ? v : '—';
-
-    // Status banner
-    const onTrack = wm.avgTNPS != null && wm.avgTNPS >= TARGET;
-    const banner = document.getElementById('execStatusBanner');
-    const statusText = document.getElementById('execStatusText');
-    if (wm.done === 0) {
-      banner.className = 'status-banner no-data';
-      statusText.textContent = 'Awaiting outreach data for this period';
-    } else if (onTrack) {
-      banner.className = 'status-banner on-track';
-      statusText.textContent = '● Program On Track — tNPS target of 57 is being met';
-    } else {
-      banner.className = 'status-banner off-track';
-      statusText.textContent = '⚠ Needs Attention — tNPS below target of 57';
-    }
+    // Subtitle
+    document.getElementById('execSubtitle').textContent = label + ' · Gusto Vendor Operations';
 
     // Last updated
     if (data.lastUpdated) {
@@ -794,47 +788,50 @@
         'Last updated: ' + new Date(data.lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     }
 
-    // Subtitle with current week label
-    const weekRows2 = allRows.filter(r => r.week);
-    const latestWeek = weekRows2.length ? weekRows2.sort((a,b)=>b.date.localeCompare(a.date))[0].week : '';
-    if (latestWeek) document.getElementById('execSubtitle').textContent = 'Week of ' + latestWeek + ' · Gusto Vendor Operations';
-
-    // Auto-generated narrative
-    const sentWord = wm.sentPct != null ? (wm.sentPct >= 80 ? 'strong' : wm.sentPct >= 60 ? 'positive' : 'mixed') : null;
-
-    let narrative = '';
-    if (wm.done > 0) {
-      narrative += `<p>This week, <strong>${wm.done} customer${wm.done !== 1 ? 's' : ''}</strong> were contacted across the program`;
-      if (tp.done && tu.done) narrative += ` (${tp.done} via TP, ${tu.done} via TaskUs)`;
-      narrative += `. The average post-outreach tNPS was <strong>${fmt(wm.avgTNPS)}</strong> — `;
-      narrative += wm.avgTNPS >= TARGET ? `above the program target of ${TARGET}.` : `below the program target of ${TARGET}, requiring attention.`;
-      narrative += `</p>`;
-
-
-      if (wm.sentPct != null) narrative += `<p>Verbal sentiment was <strong>${sentWord}</strong> this week, with <strong>${wm.sentPct}%</strong> of customers confirming their issue was resolved and that they feel more confident using Gusto.</p>`;
-
-
-      if (wm.totalARR) narrative += `<p>Total ARR touched this week: <strong>${fmtA(wm.totalARR)}</strong>.${mm.totalARR ? ' Month to date: <strong>' + fmtA(mm.totalARR) + '</strong>.' : ''}</p>`;
+    // Status banner
+    const banner = document.getElementById('execStatusBanner');
+    const statusText = document.getElementById('execStatusText');
+    if (pm.done === 0) {
+      banner.className = 'status-banner no-data';
+      statusText.textContent = 'Awaiting outreach data for this period';
+    } else if (pm.avgTNPS != null && pm.avgTNPS >= TARGET) {
+      banner.className = 'status-banner on-track';
+      statusText.textContent = '● Program On Track — tNPS target of 57 is being met';
     } else {
-      narrative += `<p>No outreach contacts have been recorded for this period yet. Check back once the daily data pull has run.</p>`;
+      banner.className = 'status-banner off-track';
+      statusText.textContent = '⚠ Needs Attention — tNPS below target of 57';
+    }
+
+    // Narrative
+    const sentWord = pm.sentPct != null ? (pm.sentPct >= 80 ? 'strong' : pm.sentPct >= 60 ? 'positive' : 'mixed') : null;
+    let narrative = '';
+    if (pm.done > 0) {
+      narrative += `<p>For <strong>${label}</strong>, <strong>${pm.done} customer${pm.done !== 1 ? 's' : ''}</strong> were contacted`;
+      if (tp.done && tu.done) narrative += ` (${tp.done} via TP, ${tu.done} via TaskUs)`;
+      narrative += `. The average post-outreach tNPS was <strong>${fmt(pm.avgTNPS)}</strong> — `;
+      narrative += pm.avgTNPS >= TARGET ? `above the program target of ${TARGET}.` : `below the program target of ${TARGET}, requiring attention.`;
+      narrative += `</p>`;
+      if (pm.sentPct != null) narrative += `<p>Verbal sentiment was <strong>${sentWord}</strong>, with <strong>${pm.sentPct}%</strong> of customers confirming their issue was resolved and that they feel more confident using Gusto.</p>`;
+      if (pm.totalARR) narrative += `<p>Total ARR touched: <strong>${fmtA(pm.totalARR)}</strong>.</p>`;
+    } else {
+      narrative = `<p>No outreach contacts recorded for this period.</p>`;
     }
     document.getElementById('execNarrative').innerHTML = narrative;
 
-    // Week metrics
+    // Period metrics (single column, labeled dynamically)
     document.getElementById('execWeekMetrics').innerHTML = metricRows([
-      ['Customers Contacted', fmt(wm.done), wm.done > 0],
-      ['Avg tNPS (Post-Outreach)', fmt(wm.avgTNPS), wm.avgTNPS >= TARGET],
-      ['Verbal Sentiment', wm.sentPct != null ? wm.sentPct+'%' : '—', wm.sentPct >= 70],
-      ['Total ARR Touched', wm.totalARR ? fmtA(wm.totalARR) : '—', wm.totalARR > 0],
+      ['Customers Contacted', fmt(pm.done), pm.done > 0],
+      ['Avg tNPS (Post-Outreach)', fmt(pm.avgTNPS), pm.avgTNPS >= TARGET],
+      ['Verbal Sentiment', pm.sentPct != null ? pm.sentPct+'%' : '—', pm.sentPct >= 70],
+      ['Total ARR Touched', pm.totalARR ? fmtA(pm.totalARR) : '—', pm.totalARR > 0],
     ]);
+    // Update the column header to match selected period
+    const weekColHead = document.querySelector('#execView .exec-col-card:first-child h4');
+    if (weekColHead) weekColHead.textContent = label;
 
-    // MTD metrics
-    document.getElementById('execMTDMetrics').innerHTML = metricRows([
-      ['Customers Contacted', fmt(mm.done), mm.done > 0],
-      ['Avg tNPS (Post-Outreach)', fmt(mm.avgTNPS), mm.avgTNPS >= TARGET],
-      ['Verbal Sentiment', mm.sentPct != null ? mm.sentPct+'%' : '—', mm.sentPct >= 70],
-      ['Total ARR Touched', mm.totalARR ? fmtA(mm.totalARR) : '—', mm.totalARR > 0],
-    ]);
+    // Hide MTD column (now redundant with filter)
+    const mtdCol = document.querySelector('#execView .exec-col-card:last-child');
+    if (mtdCol) mtdCol.style.display = 'none';
 
     // Site stats
     document.getElementById('execTPStats').innerHTML = siteStatRows(tp);
@@ -846,14 +843,13 @@
     const review1 = new Date('2026-08-01');
     const review2 = new Date('2026-09-01');
     const daysDiff = (a, b) => Math.ceil((b - a) / 86400000);
-
-    function msRow(dotClass, label, detail) {
-      return `<div class="milestone-row"><div class="milestone-dot ${dotClass}"></div><div><strong>${label}</strong> — <span style="color:var(--gray)">${detail}</span></div></div>`;
+    function msRow(dotClass, lbl, detail) {
+      return `<div class="milestone-row"><div class="milestone-dot ${dotClass}"></div><div><strong>${lbl}</strong> — <span style="color:var(--gray)">${detail}</span></div></div>`;
     }
     let ms = '';
-    ms += msRow(today >= launch ? 'ms-done' : 'ms-next', 'Program Launch', today >= launch ? 'July 1, 2026 — Complete' : 'July 1, 2026 — ' + daysDiff(today, launch) + ' days away');
+    ms += msRow(today >= launch  ? 'ms-done' : 'ms-next',   'Program Launch',   today >= launch  ? 'July 1, 2026 — Complete'     : 'July 1, 2026 — '     + daysDiff(today, launch)  + ' days away');
     ms += msRow(today >= review1 ? 'ms-done' : (today >= launch ? 'ms-next' : 'ms-future'), 'First Review', today >= review1 ? 'August 1, 2026 — Complete' : 'August 1, 2026' + (today >= launch ? ' — ' + daysDiff(today, review1) + ' days away' : ''));
-    ms += msRow(today >= review2 ? 'ms-done' : 'ms-future', 'Full Assessment', today >= review2 ? 'September 1, 2026 — Complete' : 'September 1, 2026' + (today >= review1 ? ' — ' + daysDiff(today, review2) + ' days away' : ''));
+    ms += msRow(today >= review2 ? 'ms-done' : 'ms-future', 'Full Assessment',  today >= review2 ? 'September 1, 2026 — Complete' : 'September 1, 2026'    + (today >= review1 ? ' — ' + daysDiff(today, review2) + ' days away' : ''));
     document.getElementById('execMilestones').innerHTML = ms;
   }
 
@@ -877,24 +873,63 @@
     ].map(([l,v]) => `<div class="exec-site-stat"><span>${l}</span><span>${v}</span></div>`).join('');
   }
 
+  function updatePickerVisibility() {
+    document.getElementById('weekPicker').style.display  = (filter === 'weekly')  ? '' : 'none';
+    document.getElementById('monthPicker').style.display = (filter === 'monthly') ? '' : 'none';
+  }
+
   function setFilter(f, el) {
     filter = f;
     weekFilter = '';
-    document.getElementById('weekPicker').value = '';
+    monthFilter = '';
+    document.getElementById('weekPicker').value  = '';
+    document.getElementById('monthPicker').value = '';
     document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
-    render();
+    updatePickerVisibility();
+    if (currentTab === 'exec') renderExecSummary(); else render();
   }
 
   function setWeekFilter(val) {
     weekFilter = val;
+    monthFilter = '';
     if (val) {
       document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
     } else {
       document.getElementById('tab-weekly').classList.add('active');
       filter = 'weekly';
     }
-    render();
+    if (currentTab === 'exec') renderExecSummary(); else render();
+  }
+
+  function setMonthFilter(val) {
+    monthFilter = val;
+    weekFilter = '';
+    if (val) {
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    } else {
+      document.getElementById('tab-monthly').classList.add('active');
+      filter = 'monthly';
+    }
+    if (currentTab === 'exec') renderExecSummary(); else render();
+  }
+
+  function populateMonthPicker() {
+    if (!data || !data.outreachData) return;
+    const today = new Date();
+    const currentMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+    const months = [...new Set(data.outreachData.map(r => r.month).filter(Boolean))]
+      .filter(m => m <= currentMonth)
+      .sort();
+    const sel = document.getElementById('monthPicker');
+    sel.innerHTML = '<option value="">Pick a month…</option>';
+    months.forEach(m => {
+      const [yr, mo] = m.split('-');
+      const label = new Date(yr, mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = label;
+      sel.appendChild(opt);
+    });
   }
 
   function setSite(s, el) {
@@ -945,10 +980,9 @@
       rows = rows.filter(r => r.site === siteFilter);
     }
 
-    // Week picker overrides period filter
-    if (weekFilter) {
-      return rows.filter(r => r.week === weekFilter);
-    }
+    // Specific week/month picker overrides period filter
+    if (weekFilter)  return rows.filter(r => r.week  === weekFilter);
+    if (monthFilter) return rows.filter(r => r.month === monthFilter);
 
     // Period filter — use latest date in dataset as reference (handles preview data)
     const dates = rows.map(r => new Date(r.date));
