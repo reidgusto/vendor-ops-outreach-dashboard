@@ -506,12 +506,6 @@
         <span class="kpi-pill pill-none" id="kpTNPS">No data yet</span>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Overall Team tNPS Trend</div>
-        <div class="kpi-value" id="kvTeamTNPS">—</div>
-        <div class="kpi-target">Avg tNPS of all surveyed cases</div>
-        <span class="kpi-pill pill-none" id="kpTeamTNPS">No data yet</span>
-      </div>
-      <div class="kpi-card">
         <div class="kpi-label">Verbal Sentiment</div>
         <div class="kpi-value" id="kvSent">—</div>
         <div class="kpi-target">% positive on both questions</div>
@@ -1011,11 +1005,6 @@
 
 
     // Overall team tNPS trend — avg original tNPS of all cases in period
-    const allOrig = rows.filter(r => r.originalTNPS !== null && r.originalTNPS !== undefined).map(r => r.originalTNPS);
-    const avgOrig = allOrig.length ? +(allOrig.reduce((a,b)=>a+b,0)/allOrig.length).toFixed(1) : null;
-    document.getElementById('kvTeamTNPS').textContent = avgOrig !== null ? avgOrig : '—';
-    setPill('kpTeamTNPS', avgOrig, avgOrig !== null ? (avgOrig >= 7 ? 'Passive Range' : 'Detractor Range') : 'No data yet', avgOrig !== null ? avgOrig >= 7 : null);
-
     // Verbal sentiment
     const withSent = done.filter(r => r.verbalQ1 && r.verbalQ2);
     const pos = withSent.filter(r => r.verbalQ1 === 'Yes' && r.verbalQ2 === 'Yes').length;
